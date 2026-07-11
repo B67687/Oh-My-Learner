@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
-	"oh-my-learner/core"
+	"github.com/B67687/Oh-My-Learner/core"
 )
 
 var addCmd = &cobra.Command{

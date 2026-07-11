@@ -1,6 +1,6 @@
 package main
 
-import "oh-my-learner/cmd"
+import "github.com/B67687/Oh-My-Learner/cmd"
 
 func main() {
 	cmd.Execute()

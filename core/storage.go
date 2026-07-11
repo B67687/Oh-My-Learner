@@ -1,5 +1,3 @@
-// Package core provides SQLite-backed persistence for oh-my-learner.
-// Uses modernc.org/sqlite (pure Go, no CGO) via database/sql.
 package core
 
 import (
@@ -12,15 +10,11 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// ─── Additional types (used by Storage, not in core.go) ────────────────
-
 // SubjectCardCount counts all cards for a subject.
 type SubjectCardCount struct {
 	SubjectID string
 	Count     int
 }
-
-// ─── Storage ────────────────────────────────────────────────────────────
 
 // Storage provides SQLite-backed persistence for subjects, cards, and reviews.
 type Storage struct {
@@ -55,6 +49,7 @@ func migrate(db *sql.DB) error {
 	CREATE TABLE IF NOT EXISTS cards (
 		id               TEXT PRIMARY KEY,
 		subject_id       TEXT NOT NULL REFERENCES subjects(id),
+		template_type    TEXT NOT NULL DEFAULT 'standard',
 		template_question TEXT NOT NULL,
 		template_answer   TEXT NOT NULL,
 		variables        TEXT NOT NULL,
@@ -75,17 +70,18 @@ func migrate(db *sql.DB) error {
 	CREATE INDEX IF NOT EXISTS idx_reviews_card     ON reviews(card_id);
 	`
 	_, err := db.Exec(schema)
-	return err
+	if err != nil {
+		return err
+	}
+	// Backfill template_type if column exists but is empty (schema upgrade).
+	_, _ = db.Exec(`UPDATE cards SET template_type = 'standard' WHERE template_type IS NULL OR template_type = ''`)
+	return nil
 }
 
-// Close shuts down the database connection.
 func (s *Storage) Close() error {
 	return s.db.Close()
 }
 
-// ─── Subjects ───────────────────────────────────────────────────────────
-
-// UpsertSubject inserts or replaces a subject row.
 func (s *Storage) UpsertSubject(id, name string) error {
 	_, err := s.db.Exec(
 		`INSERT OR REPLACE INTO subjects (id, name) VALUES (?, ?)`,
@@ -94,13 +90,52 @@ func (s *Storage) UpsertSubject(id, name string) error {
 	return err
 }
 
-// RemoveSubject deletes a subject by id.
 func (s *Storage) RemoveSubject(id string) error {
 	_, err := s.db.Exec(`DELETE FROM subjects WHERE id = ?`, id)
 	return err
 }
 
-// ─── Cards ──────────────────────────────────────────────────────────────
+func (s *Storage) Subjects() ([]SubjectDueCount, error) {
+	rows, err := s.db.Query(
+		`SELECT s.id, s.name, COUNT(c.id)
+		   FROM subjects s
+		   LEFT JOIN cards c ON c.subject_id = s.id
+		  GROUP BY s.id, s.name
+		  ORDER BY s.id`,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query subjects: %w", err)
+	}
+	defer rows.Close()
+
+	var results []SubjectDueCount
+	for rows.Next() {
+		var r SubjectDueCount
+		if err := rows.Scan(&r.ID, &r.Name, &r.DueCount); err != nil {
+			return nil, fmt.Errorf("scan subject: %w", err)
+		}
+		results = append(results, r)
+	}
+	return results, rows.Err()
+}
+
+func (s *Storage) AddCard(tmpl Template) (CardState, error) {
+	id := uuid.New().String()
+	now := time.Now()
+	state := CardState{
+		ID:             id,
+		SubjectID:      tmpl.SubjectID,
+		EasinessFactor: 2.5,
+		IntervalDays:   0,
+		Repetition:     0,
+		NextReviewAt:   now,
+		CreatedAt:      now,
+	}
+	if err := s.InsertCard(state, tmpl); err != nil {
+		return CardState{}, err
+	}
+	return state, nil
+}
 
 // DueCards returns all cards whose next_review_at is at or before now.
 func (s *Storage) DueCards(now time.Time) ([]CardState, error) {
@@ -163,50 +198,26 @@ func (s *Storage) SubjectDueCounts(now time.Time) ([]SubjectDueCount, error) {
 	return results, rows.Err()
 }
 
-// SubjectCardCounts returns the total card count for every subject.
-func (s *Storage) SubjectCardCounts() ([]SubjectCardCount, error) {
-	rows, err := s.db.Query(
-		`SELECT s.id, COUNT(c.id)
-		   FROM subjects s
-		   LEFT JOIN cards c ON c.subject_id = s.id
-		  GROUP BY s.id
-		  ORDER BY s.id`,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("query subject card counts: %w", err)
-	}
-	defer rows.Close()
-
-	var results []SubjectCardCount
-	for rows.Next() {
-		var r SubjectCardCount
-		if err := rows.Scan(&r.SubjectID, &r.Count); err != nil {
-			return nil, fmt.Errorf("scan subject card count: %w", err)
-		}
-		results = append(results, r)
-	}
-	return results, rows.Err()
-}
-
-// GetCardWithTemplate loads a card together with its template data.
+// GetCardWithTemplate loads a card with its rendering data.
 func (s *Storage) GetCardWithTemplate(cardID string) (*CardWithTemplate, error) {
 	var (
 		cwt           CardWithTemplate
 		nextReviewStr string
 		createdAtStr  string
 		variablesStr  string
+		typeStr       string
 	)
 
 	err := s.db.QueryRow(
 		`SELECT id, subject_id, easiness_factor, interval_days, repetition,
 		        next_review_at, created_at,
-		        template_question, template_answer, variables
+		        template_type, template_question, template_answer, variables
 		   FROM cards WHERE id = ?`, cardID,
 	).Scan(
 		&cwt.State.ID, &cwt.State.SubjectID,
 		&cwt.State.EasinessFactor, &cwt.State.IntervalDays, &cwt.State.Repetition,
 		&nextReviewStr, &createdAtStr,
-		&cwt.QuestionTemplate, &cwt.AnswerTemplate,
+		&typeStr, &cwt.QuestionTemplate, &cwt.AnswerTemplate,
 		&variablesStr,
 	)
 	if err != nil {
@@ -215,6 +226,7 @@ func (s *Storage) GetCardWithTemplate(cardID string) (*CardWithTemplate, error) 
 
 	cwt.State.NextReviewAt, _ = time.Parse(time.RFC3339, nextReviewStr)
 	cwt.State.CreatedAt, _ = time.Parse(time.RFC3339, createdAtStr)
+	cwt.Type = TemplateType(typeStr)
 
 	if err := json.Unmarshal([]byte(variablesStr), &cwt.Variables); err != nil {
 		return nil, fmt.Errorf("unmarshal variables: %w", err)
@@ -232,10 +244,11 @@ func (s *Storage) InsertCard(state CardState, tmpl Template) error {
 
 	_, err = s.db.Exec(
 		`INSERT INTO cards
-		   (id, subject_id, template_question, template_answer, variables,
+		   (id, subject_id, template_type, template_question, template_answer, variables,
 		    easiness_factor, interval_days, repetition, next_review_at, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		state.ID, state.SubjectID,
+		string(tmpl.Type),
 		tmpl.QuestionTemplate, tmpl.AnswerTemplate,
 		string(variablesJSON),
 		state.EasinessFactor, state.IntervalDays, state.Repetition,
@@ -249,7 +262,8 @@ func (s *Storage) InsertCard(state CardState, tmpl Template) error {
 func (s *Storage) UpdateCardState(state CardState) error {
 	_, err := s.db.Exec(
 		`UPDATE cards
-		    SET easiness_factor = ?, interval_days = ?, repetition = ?, next_review_at = ?
+		    SET easiness_factor = ?, interval_days = ?, repetition = ?,
+		        next_review_at = ?
 		  WHERE id = ?`,
 		state.EasinessFactor, state.IntervalDays, state.Repetition,
 		state.NextReviewAt.Format(time.RFC3339),
@@ -258,24 +272,37 @@ func (s *Storage) UpdateCardState(state CardState) error {
 	return err
 }
 
-// ─── Reviews ────────────────────────────────────────────────────────────
-
-// InsertReview records a review attempt for the given card.
+// InsertReview records a review event for audit/analytics.
 func (s *Storage) InsertReview(cardID string, quality uint8) error {
 	id := uuid.New().String()
 	_, err := s.db.Exec(
-		`INSERT INTO reviews (id, card_id, quality, reviewed_at) VALUES (?, ?, ?, ?)`,
+		`INSERT INTO reviews (id, card_id, quality, reviewed_at)
+		 VALUES (?, ?, ?, ?)`,
 		id, cardID, quality, time.Now().Format(time.RFC3339),
 	)
 	return err
 }
 
-// TodayReviewCount returns how many reviews were recorded today.
-func (s *Storage) TodayReviewCount() (int, error) {
-	today := time.Now().Format("2006-01-02")
-	var count int
-	err := s.db.QueryRow(
-		`SELECT COUNT(*) FROM reviews WHERE reviewed_at LIKE ? || '%'`, today,
-	).Scan(&count)
-	return count, err
+// SubjectCardCounts returns total card counts per subject.
+func (s *Storage) SubjectCardCounts() ([]SubjectCardCount, error) {
+	rows, err := s.db.Query(
+		`SELECT s.id, COUNT(c.id)
+		   FROM subjects s
+		   LEFT JOIN cards c ON c.subject_id = s.id
+		  GROUP BY s.id
+		  ORDER BY s.id`)
+	if err != nil {
+		return nil, fmt.Errorf("query subject card counts: %w", err)
+	}
+	defer rows.Close()
+
+	var results []SubjectCardCount
+	for rows.Next() {
+		var r SubjectCardCount
+		if err := rows.Scan(&r.SubjectID, &r.Count); err != nil {
+			return nil, fmt.Errorf("scan subject card count: %w", err)
+		}
+		results = append(results, r)
+	}
+	return results, rows.Err()
 }

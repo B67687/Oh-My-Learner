@@ -10,8 +10,6 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-// ─── TOML file structure ──────────────────────────────────────────────────────
-
 // subjectPack is the top-level TOML structure for a subject pack file.
 type subjectPack struct {
 	Name      string         `toml:"name"`
@@ -21,6 +19,7 @@ type subjectPack struct {
 // packTemplate is a single template entry in the TOML file.
 type packTemplate struct {
 	ID        string              `toml:"id"`
+	Type      string              `toml:"type"`
 	Question  string              `toml:"question"`
 	Answer    string              `toml:"answer"`
 	Variables map[string][]string `toml:"variables"`
@@ -28,8 +27,6 @@ type packTemplate struct {
 
 // templateVarRe converts {{ name }} to {{.name}} for Go's text/template.
 var templateVarRe = regexp.MustCompile(`\{\{\s*(\w+)\s*\}\}`)
-
-// ─── Public API ───────────────────────────────────────────────────────────────
 
 // LoadSubjectPack parses TOML bytes into a slice of Template.
 func LoadSubjectPack(data []byte, subjectID string) ([]Template, error) {
@@ -40,9 +37,14 @@ func LoadSubjectPack(data []byte, subjectID string) ([]Template, error) {
 
 	templates := make([]Template, len(pack.Templates))
 	for i, pt := range pack.Templates {
+		t := TemplateType(pt.Type)
+		if t == "" {
+			t = TemplateStandard
+		}
 		templates[i] = Template{
 			ID:               pt.ID,
 			SubjectID:        subjectID,
+			Type:             t,
 			QuestionTemplate: pt.Question,
 			AnswerTemplate:   pt.Answer,
 			Variables:        pt.Variables,
@@ -79,12 +81,8 @@ func RenderTemplate(tmpl Template) (*RenderedProblem, error) {
 	}, nil
 }
 
-// ─── Internal ─────────────────────────────────────────────────────────────────
-
 // renderText substitutes bindings into a template string using Go's text/template.
-// It converts {{ var }} syntax to {{.var}} before parsing.
 func renderText(tmplText string, bindings map[string]string) (string, error) {
-	// Convert {{ name }} to {{.name}} for Go's text/template.
 	converted := templateVarRe.ReplaceAllString(tmplText, "{{.$1}}")
 
 	t, err := template.New("").Option("missingkey=error").Parse(converted)

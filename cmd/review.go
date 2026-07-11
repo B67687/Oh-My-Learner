@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"oh-my-learner/core"
+	"github.com/B67687/Oh-My-Learner/core"
 )
 
 var reviewCmd = &cobra.Command{
@@ -18,7 +18,13 @@ var reviewCmd = &cobra.Command{
 	Long: `Practice cards that are due for review.
 
 Each card shows a question, waits for you to reveal the answer, then
-asks for a quality rating (0-5) to update the spaced repetition schedule.`,
+asks for a quality rating (0-5) to update the spaced repetition schedule.
+
+Supports multiple template types:
+- standard: Q&A (existing)
+- code-trace: what does this code output?
+- debug-find: what is the bug in this code?
+- explain-why: explain why this concept works this way`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		store, err := core.NewStorage(getDBPath())
 		if err != nil {
@@ -45,7 +51,7 @@ asks for a quality rating (0-5) to update the spaced repetition schedule.`,
 
 		fmt.Printf("\n  Session: %d cards across %d subjects\n", len(cards), len(subjects))
 		if len(cards) < 10 {
-			fmt.Println("  Tip: fewer than 10 cards due — interleaving works best with more cards.")
+			fmt.Println("  Tip: fewer than 10 cards due - interleaving works best with more cards.")
 		} else if len(subjects) < 2 && len(cards) >= 10 {
 			fmt.Println("  Tip: all cards are from one subject. Add another subject for interleaving benefits.")
 		}
@@ -61,6 +67,7 @@ asks for a quality rating (0-5) to update the spaced repetition schedule.`,
 			tmpl := core.Template{
 				ID:               cwt.State.ID,
 				SubjectID:        cwt.State.SubjectID,
+				Type:             cwt.Type,
 				QuestionTemplate: cwt.QuestionTemplate,
 				AnswerTemplate:   cwt.AnswerTemplate,
 				Variables:        cwt.Variables,
@@ -72,15 +79,47 @@ asks for a quality rating (0-5) to update the spaced repetition schedule.`,
 				continue
 			}
 
-			fmt.Printf("\n  %d/%d -- %s --\n", i+1, len(cards), card.SubjectID)
-			fmt.Printf("  Q: %s\n", rendered.Question)
+			// Type-specific display.
+			typeLabel := string(cwt.Type)
+			fmt.Printf("\n  %d/%d -- %s [%s] --\n", i+1, len(cards), card.SubjectID, typeLabel)
+
+			switch cwt.Type {
+			case core.TemplateCodeTrace:
+				fmt.Println("  What does this code output?")
+				fmt.Println("  ```")
+				for _, line := range strings.Split(rendered.Question, "\n") {
+					fmt.Printf("  %s\n", line)
+				}
+				fmt.Println("  ```")
+			case core.TemplateDebugFind:
+				fmt.Println("  What's the bug in this code?")
+				fmt.Println("  ```")
+				for _, line := range strings.Split(rendered.Question, "\n") {
+					fmt.Printf("  %s\n", line)
+				}
+				fmt.Println("  ```")
+			case core.TemplateExplainWhy:
+				fmt.Printf("  Explain why: %s\n", rendered.Question)
+			default:
+				fmt.Printf("  Q: %s\n", rendered.Question)
+			}
 
 			fmt.Print("  [press Enter to reveal answer]")
 			if _, err := readLine(); err != nil {
 				return fmt.Errorf("read error: %w", err)
 			}
 
-			fmt.Printf("  A: %s\n", rendered.Answer)
+			switch cwt.Type {
+			case core.TemplateCodeTrace:
+				fmt.Println("  Output:")
+				fmt.Println("  ```")
+				for _, line := range strings.Split(rendered.Answer, "\n") {
+					fmt.Printf("  %s\n", line)
+				}
+				fmt.Println("  ```")
+			default:
+				fmt.Printf("  A: %s\n", rendered.Answer)
+			}
 
 			var quality core.ReviewQuality
 			for {

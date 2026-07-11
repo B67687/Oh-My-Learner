@@ -1,10 +1,16 @@
-// Package core defines the shared types and API for oh-my-learner.
-// CLI and future TUI consume this package. No external dependencies.
 package core
 
 import "time"
 
-// ─── Card State (SM-2) ──────────────────────────────────────────────────────
+// TemplateType represents the kind of practice problem a template generates.
+type TemplateType string
+
+const (
+	TemplateStandard   TemplateType = "standard"    // Q&A (existing behavior)
+	TemplateCodeTrace  TemplateType = "code-trace"  // What does this code output?
+	TemplateDebugFind  TemplateType = "debug-find"  // What is the bug in this code?
+	TemplateExplainWhy TemplateType = "explain-why" // Explain why this concept works this way
+)
 
 // CardState represents the SM-2 spaced repetition state for a single card.
 type CardState struct {
@@ -17,19 +23,18 @@ type CardState struct {
 	CreatedAt      time.Time `json:"created_at"`
 }
 
-// ReviewQuality is an SM-2 quality rating (0–5).
+// ReviewQuality is an SM-2 quality rating (0-5).
 // 0=blackout, 1-2=wrong, 3=hard, 4=good, 5=perfect.
 type ReviewQuality uint8
 
-// IsPassing returns true if the quality indicates correct recall (≥3).
+// IsPassing returns true if the quality indicates correct recall (>=3).
 func (q ReviewQuality) IsPassing() bool { return q >= 3 }
-
-// ─── Templates ──────────────────────────────────────────────────────────────
 
 // Template generates practice problems from parameterized variables.
 type Template struct {
 	ID               string              `toml:"id"`
 	SubjectID        string              `toml:"-"`
+	Type             TemplateType        `toml:"type"`
 	QuestionTemplate string              `toml:"question"`
 	AnswerTemplate   string              `toml:"answer"`
 	Variables        map[string][]string `toml:"variables"`
@@ -42,8 +47,6 @@ type RenderedProblem struct {
 	Bindings map[string]string
 }
 
-// ─── Storage ────────────────────────────────────────────────────────────────
-
 // SubjectDueCount is a subject with its due-card and total-card counts.
 type SubjectDueCount struct {
 	ID       string
@@ -54,6 +57,7 @@ type SubjectDueCount struct {
 // CardWithTemplate is a card loaded with template data for rendering.
 type CardWithTemplate struct {
 	State            CardState
+	Type             TemplateType
 	QuestionTemplate string
 	AnswerTemplate   string
 	Variables        map[string][]string

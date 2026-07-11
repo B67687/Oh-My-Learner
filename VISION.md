@@ -1,7 +1,7 @@
-# oh-my-learner — VISION
+# Oh-My-Learner — VISION
 
-**CLI**: `learn`  
-**Repo**: `oh-my-learner`
+**CLI**: `Oh-My-Learner`  
+**Repo**: `Oh-My-Learner`
 
 ## One Sentence
 
@@ -9,7 +9,7 @@ A CLI that generates practice problems from templates and schedules them with sp
 
 ## Why This Exists
 
-Every flashcard tool makes you write your own cards. That's the hard part — so students don't do it. `learn` generates problems from templates so you spend your energy *answering*, not *writing*. The FSRS spaced repetition scheduler ensures you see each problem at the optimal moment for retention. Interleaving (mixing subjects/problem types) is built into every session per robust learning science evidence.
+Every flashcard tool makes you write your own cards. That's the hard part — so students don't do it. `Oh-My-Learner` generates problems from templates so you spend your energy *answering*, not *writing*. The FSRS spaced repetition scheduler ensures you see each problem at the optimal moment for retention. Interleaving (mixing subjects/problem types) is built into every session per robust learning science evidence.
 
 Learning science (Dunlosky et al., 2013) shows only two study techniques have high utility: **practice testing / active recall** and **distributed practice / spaced repetition**. This tool does both, plus interleaving (Bjork 1992, Rohrer 2012).
 
@@ -28,7 +28,7 @@ Learning science (Dunlosky et al., 2013) shows only two study techniques have hi
 | Storage | Local SQLite (`modernc.org/sqlite` — pure Go, no CGO). Full offline. |
 | Subjects | Pluggable template packs (TOML) — local files |
 | Gamification | Streaks only (loss aversion — "don't break the chain"). No points, no badges, no leaderboards |
-| Config | `~/.config/oh-my-learner/config.toml` |
+| Config | `~/.config/Oh-My-Learner/config.toml` |
 | Standards | Audit against standards framework (ADR, changelog, CI, commit conventions, etc.) |
 | Retrospectives | Apply retrospective methodology after each milestone |
 
@@ -45,9 +45,9 @@ Learning science (Dunlosky et al., 2013) shows only two study techniques have hi
 
 ### Architecture
 
-oh-my-learner/
+Oh-My-Learner/
 ├── core/        # Library: scheduler, templater, storage
-├── cmd/         # Binary: `learn` command (cobra)
+├── cmd/         # Binary: `Oh-My-Learner` command (cobra)
 ├── main.go      # Entry point
 └── subjects/    # Template packs per subject
 ```

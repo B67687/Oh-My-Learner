@@ -1,4 +1,4 @@
-module oh-my-learner
+module github.com/B67687/Oh-My-Learner
 
 go 1.25.0
 
