@@ -10,13 +10,12 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-// subjectPack is the top-level TOML structure for a subject pack file.
 type subjectPack struct {
-	Name      string         `toml:"name"`
-	Templates []packTemplate `toml:"templates"`
+	Name          string         `toml:"name"`
+	Prerequisites []string       `toml:"prerequisites,omitempty"`
+	Templates     []packTemplate `toml:"templates"`
 }
 
-// packTemplate is a single template entry in the TOML file.
 type packTemplate struct {
 	ID        string              `toml:"id"`
 	Type      string              `toml:"type"`
@@ -25,8 +24,16 @@ type packTemplate struct {
 	Variables map[string][]string `toml:"variables"`
 }
 
-// templateVarRe converts {{ name }} to {{.name}} for Go's text/template.
 var templateVarRe = regexp.MustCompile(`\{\{\s*(\w+)\s*\}\}`)
+
+// SubjectPackMeta returns the metadata (name + prerequisites) for a parsed subject pack.
+func SubjectPackMeta(data []byte) (name string, prereqs []string, err error) {
+	var pack subjectPack
+	if err := toml.Unmarshal(data, &pack); err != nil {
+		return "", nil, fmt.Errorf("parse subject pack: %w", err)
+	}
+	return pack.Name, pack.Prerequisites, nil
+}
 
 // LoadSubjectPack parses TOML bytes into a slice of Template.
 func LoadSubjectPack(data []byte, subjectID string) ([]Template, error) {
@@ -81,7 +88,6 @@ func RenderTemplate(tmpl Template) (*RenderedProblem, error) {
 	}, nil
 }
 
-// renderText substitutes bindings into a template string using Go's text/template.
 func renderText(tmplText string, bindings map[string]string) (string, error) {
 	converted := templateVarRe.ReplaceAllString(tmplText, "{{.$1}}")
 

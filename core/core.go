@@ -24,10 +24,8 @@ type CardState struct {
 }
 
 // ReviewQuality is an SM-2 quality rating (0-5).
-// 0=blackout, 1-2=wrong, 3=hard, 4=good, 5=perfect.
 type ReviewQuality uint8
 
-// IsPassing returns true if the quality indicates correct recall (>=3).
 func (q ReviewQuality) IsPassing() bool { return q >= 3 }
 
 // Template generates practice problems from parameterized variables.
@@ -38,6 +36,13 @@ type Template struct {
 	QuestionTemplate string              `toml:"question"`
 	AnswerTemplate   string              `toml:"answer"`
 	Variables        map[string][]string `toml:"variables"`
+}
+
+// SubjectMeta is the metadata for an installed subject (name + prerequisites).
+type SubjectMeta struct {
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	Prerequisites []string `json:"prerequisites,omitempty"`
 }
 
 // RenderedProblem is a concrete problem instance with bound variables.

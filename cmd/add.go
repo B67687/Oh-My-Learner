@@ -5,9 +5,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/B67687/Oh-My-Learner/core"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
-	"github.com/B67687/Oh-My-Learner/core"
 )
 
 var addCmd = &cobra.Command{
@@ -49,9 +49,25 @@ Existing cards are preserved; only new cards are inserted.`,
 		}
 		defer store.Close()
 
-		// Upsert the subject record using the subject ID as display name.
-		if err := store.UpsertSubject(subjectID, subjectID); err != nil {
+		// Get subject metadata (name, prerequisites).
+		subjectName, subjectPrereqs, err := core.SubjectPackMeta(data)
+		if err != nil {
+			return fmt.Errorf("failed to parse subject pack meta: %w", err)
+		}
+		if subjectName == "" {
+			subjectName = subjectID
+		}
+
+		// Upsert subject with real name.
+		if err := store.UpsertSubject(subjectID, subjectName); err != nil {
 			return fmt.Errorf("failed to upsert subject: %w", err)
+		}
+
+		// Store prerequisites.
+		if len(subjectPrereqs) > 0 {
+			if err := store.SetPrerequisites(subjectID, subjectPrereqs); err != nil {
+				return fmt.Errorf("failed to set prerequisites: %w", err)
+			}
 		}
 
 		// Insert one card per template, skipping existing on conflict.

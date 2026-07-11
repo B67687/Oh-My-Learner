@@ -68,6 +68,12 @@ func migrate(db *sql.DB) error {
 	CREATE INDEX IF NOT EXISTS idx_cards_subject    ON cards(subject_id);
 	CREATE INDEX IF NOT EXISTS idx_cards_next_review ON cards(next_review_at);
 	CREATE INDEX IF NOT EXISTS idx_reviews_card     ON reviews(card_id);
+	CREATE TABLE IF NOT EXISTS subject_prerequisites (
+		subject_id  TEXT NOT NULL REFERENCES subjects(id),
+		prerequisite_id TEXT NOT NULL REFERENCES subjects(id),
+		PRIMARY KEY (subject_id, prerequisite_id)
+	);
+	CREATE INDEX IF NOT EXISTS idx_prereq_subject ON subject_prerequisites(subject_id);
 	`
 	_, err := db.Exec(schema)
 	if err != nil {
@@ -305,4 +311,55 @@ func (s *Storage) SubjectCardCounts() ([]SubjectCardCount, error) {
 		results = append(results, r)
 	}
 	return results, rows.Err()
+}
+
+// SubjectMetas returns all subjects with their names and prerequisites.
+func (s *Storage) SubjectMetas() ([]SubjectMeta, error) {
+	rows, err := s.db.Query(`SELECT id, name FROM subjects ORDER BY id`)
+	if err != nil {
+		return nil, fmt.Errorf("query subjects: %w", err)
+	}
+	defer rows.Close()
+
+	var metas []SubjectMeta
+	for rows.Next() {
+		var m SubjectMeta
+		if err := rows.Scan(&m.ID, &m.Name); err != nil {
+			return nil, fmt.Errorf("scan subject meta: %w", err)
+		}
+		prereqRows, err := s.db.Query(`SELECT prerequisite_id FROM subject_prerequisites WHERE subject_id = ? ORDER BY prerequisite_id`, m.ID)
+		if err != nil {
+			return nil, fmt.Errorf("query prerequisites for %s: %w", m.ID, err)
+		}
+		for prereqRows.Next() {
+			var pid string
+			if err := prereqRows.Scan(&pid); err != nil {
+				prereqRows.Close()
+				return nil, fmt.Errorf("scan prerequisite: %w", err)
+			}
+			m.Prerequisites = append(m.Prerequisites, pid)
+		}
+		prereqRows.Close()
+		metas = append(metas, m)
+	}
+	return metas, rows.Err()
+}
+
+// SetPrerequisites replaces the prerequisite list for a subject.
+func (s *Storage) SetPrerequisites(subjectID string, prereqs []string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DELETE FROM subject_prerequisites WHERE subject_id = ?`, subjectID); err != nil {
+		return fmt.Errorf("clear prerequisites: %w", err)
+	}
+	for _, pid := range prereqs {
+		if _, err := tx.Exec(`INSERT INTO subject_prerequisites (subject_id, prerequisite_id) VALUES (?, ?)`, subjectID, pid); err != nil {
+			return fmt.Errorf("insert prerequisite %s: %w", pid, err)
+		}
+	}
+	return tx.Commit()
 }
