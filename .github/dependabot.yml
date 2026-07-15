@@ -10,7 +10,7 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-limit: 5
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "automerge"
@@ -20,7 +20,7 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-limit: 3
+    open-pull-requests-limit: 3
     labels:
       - "ci"
       - "dependencies"
