@@ -1,0 +1,37 @@
+[
+  {
+    "type": "standard",
+    "question": "What is virtual memory?",
+    "answer": "Virtual memory is a memory management technique that provides an idealized abstraction of the storage resources actually available on a given machine, creating the illusion of a large, contiguous memory space."
+  },
+  {
+    "type": "code-trace",
+    "question": "{{code}}\nint x = 5;\nint *ptr = &x;\nint y = *ptr;\nprintf(\"%d\", y);\n{{endcode}}\nWhat does this program output?",
+    "answer": "The program outputs: 5. The pointer ptr stores the memory address of x, and dereferencing it with *ptr gives the value stored at that address, which is 5."
+  },
+  {
+    "type": "debug-find",
+    "question": "{{code}}\nvoid copy_string(char *dest, char *src) {\n    while (*src) {\n        *dest = *src;\n        dest++;\n        src++;\n    }\n}\n{{endcode}}\nWhat is the bug in this function?",
+    "answer": "The function does not null-terminate the destination string. After copying all characters, it should add '\\0' to dest. Also, it does not check if dest has enough space allocated."
+  },
+  {
+    "type": "explain-why",
+    "question": "Why does the TLB (Translation Lookaside Buffer) improve performance in a virtual memory system?",
+    "answer": "The TLB caches recent page table entries (virtual-to-physical address mappings). Without it, every memory access would require two physical accesses (one to the page table, one to the actual data). The TLB exploits locality of reference so most translations hit in the cache, reducing the overhead to near zero."
+  },
+  {
+    "type": "standard",
+    "question": "What is a page fault and how is it handled?",
+    "answer": "A page fault occurs when a program accesses a page that is not currently in physical memory. The OS traps the fault, checks if the address is valid, loads the required page from disk into a physical frame, updates the page table, and resumes the instruction."
+  },
+  {
+    "type": "code-trace",
+    "question": "{{code}}\n#include <stdio.h>\nint main() {\n    int arr[3] = {10, 20, 30};\n    int *p = arr;\n    printf(\"%d\", *(p + 2));\n    return 0;\n}\n{{endcode}}\nWhat is the output?",
+    "answer": "The output is 30. arr is a pointer to the first element. p + 2 points to arr[2] (pointer arithmetic: add 2 * sizeof(int) bytes). Dereferencing gives the value 30."
+  },
+  {
+    "type": "explain-why",
+    "question": "Why does using SSDs instead of HDDs significantly improve virtual memory performance?",
+    "answer": "Virtual memory relies on disk I/O for paging (loading pages from disk to RAM on page faults). SSDs have much lower latency (microseconds vs milliseconds) and higher random I/O throughput than HDDs. This directly reduces page fault handling time, making swapping feasible even under moderate memory pressure."
+  }
+]

@@ -1,0 +1,157 @@
+name = "Computer Networks"
+prerequisites = ["SC2000", "SC1004"]
+
+# ── OSI Model & TCP/IP Stack ───────────────────────────────────────────────
+# Declarative: layer names, functions, and encapsulation order are factual.
+
+[[templates]]
+id = "osi-model-layers"
+type = "standard"
+knowledge_type = "declarative"
+question = "List the seven layers of the OSI model from bottom to top, and briefly describe the function of each."
+answer = "1. Physical — transmission of raw bits over a physical medium (cables, radio, voltage levels).\n2. Data Link — framing, MAC addressing, error detection/correction (Ethernet, WiFi).\n3. Network — logical addressing (IP), routing between networks, fragmentation.\n4. Transport — end-to-end reliability, segmentation/reassembly, flow control (TCP, UDP).\n5. Session — dialog management, synchronization checkpoints, session restoration.\n6. Presentation — data translation, encryption, compression (e.g., TLS lives here conceptually).\n7. Application — user-facing protocols (HTTP, DNS, SMTP, FTP).\n\nMnemonic: Please Do Not Throw Sausage Pizza Away."
+
+[[templates]]
+id = "encapsulation-trace"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Trace how a TCP segment carrying an HTTP POST request travels from the application layer down the sender's protocol stack. What headers are added at each layer and what fields appear in each?"
+answer = "Application layer: HTTP POST body (e.g., JSON payload, form data).\n\nTransport layer (TCP): segments the data stream, prepends TCP header (20 bytes). Fields: source port, destination port (80/443), sequence number, ACK number, data offset, flags (PSH, ACK), receive window, checksum, urgent pointer.\n\nNetwork layer (IP): wraps TCP segment in IP datagram, prepends IP header (20 bytes min). Fields: version (4), IHL, ToS/DSCP, total length, identification, flags (DF/MF), fragment offset, TTL, protocol (6=TCP), header checksum, source IP (32-bit), destination IP (32-bit).\n\nLink layer (Ethernet): wraps IP datagram in Ethernet frame — header (14 bytes: dest MAC, src MAC, EtherType=0x0800 for IPv4) + payload + trailer (4-byte CRC/FCS).\n\nPhysical layer: encodes frames as electrical/optical/radio signals on the medium."
+
+# ── Application Layer ──────────────────────────────────────────────────────
+
+[[templates]]
+id = "dns-resolution-flow"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Trace the iterative DNS resolution for a query to blog.example.com starting from a cold cache (no cached records). Show each server contacted and what information is returned."
+answer = "1. Client browser asks OS resolver for blog.example.com.\n2. OS resolver (stub resolver) forwards to configured Local DNS resolver (e.g., ISP resolver at 192.168.1.1 or 8.8.8.8).\n3. Local resolver queries a Root DNS server (e.g., a.root-servers.net). Root returns referral to .com TLD servers (gives NS records + glue A records for a.gtld-servers.net).\n4. Local resolver queries .com TLD server — returns referral to example.com authoritative nameservers (ns1.example.com, ns2.example.com) with their A records.\n5. Local resolver queries example.com authoritative server for blog.example.com — returns A record (e.g., 93.184.216.34) or CNAME if aliased.\n6. Local resolver caches the result (TTL-controlled) and returns IP to client.\n7. Client opens TCP connection to 93.184.216.34:80/443.\n\nAll queries use UDP port 53 (TCP fallback for responses >512 bytes)."
+
+[[templates]]
+id = "http-request-lifecycle"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "List every protocol interaction that occurs from the moment you type 'https://www.example.com' in a browser and press Enter, until the page is fully rendered. Assume no cached DNS, no cached connection."
+answer = "1. DNS resolution (UDP): stub → local resolver → root → .com TLD → example.com authoritative → returns IP 93.184.216.34.\n2. TCP three-way handshake (transport): SYN (client→server), SYN-ACK (server→client), ACK (client→server). Sequence numbers ISN_c and ISN_s are exchanged.\n3. TLS 1.3 handshake (optional, for HTTPS): ClientHello (supported ciphers, key share) → ServerHello (cipher choice, cert, signature) → ClientFinished (encrypted handshake) → ServerFinished → Application Data.\n4. HTTP request: client sends 'GET / HTTP/1.1\\r\\nHost: www.example.com\\r\\n...' (or HTTP/2 frames on the same connection).\n5. Server processes request, generates HTTP response: 'HTTP/1.1 200 OK\\r\\nContent-Type: text/html\\r\\n...' followed by HTML body.\n6. Browser parses HTML, discovers external resources (CSS, JS, images, fonts) — repeats steps 1-5 for each domain, but reuses existing TCP+TLS connections via HTTP connection pooling.\n7. Browser renders page: DOM tree → CSSOM → render tree → layout → paint.\n\nTCP connection may be kept alive (Connection: keep-alive) or closed via FIN/FIN-ACK/ACK exchange."
+
+[[templates]]
+id = "http2-multiplexing-why"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "Why did HTTP/2 replace HTTP/1.1's multiple parallel connections with multiplexed streams over a single TCP connection?"
+answer = "HTTP/1.1 used up to 6 parallel TCP connections per domain to work around head-of-line (HOL) blocking — one slow response on a connection blocked subsequent responses queued behind it. Each parallel connection incurred its own TCP slow start (starting at a small congestion window) and consumed socket/file-descriptor resources.\n\nHTTP/2 multiplexes multiple concurrent streams within a single TCP connection using binary framing. Each stream carries one request/response, and frames are interleaved on the connection via stream ID headers. Benefits: (1) single congestion window grows faster (no split across connections), (2) no connection overhead per resource, (3) stream-level prioritization, (4) server push eliminates client re-requests.\n\nLimitation: TCP-level HOL blocking remains — a lost TCP segment blocks ALL streams on that connection, because TCP guarantees in-order delivery. This drove HTTP/3 which runs over QUIC (UDP-based, per-stream loss recovery)."
+
+[[templates]]
+id = "http-status-codes"
+type = "standard"
+knowledge_type = "declarative"
+question = "What do the five classes of HTTP status codes (1xx–5xx) signify? Give one example from each class."
+answer = "1xx (Informational): request received, continuing. Example: 101 Switching Protocols (WebSocket upgrade).\n2xx (Success): request understood and accepted. Example: 200 OK, 201 Created.\n3xx (Redirection): further action needed. Example: 301 Moved Permanently, 302 Found, 304 Not Modified.\n4xx (Client Error): request cannot be fulfilled due to client mistake. Example: 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found.\n5xx (Server Error): server failed to fulfil a valid request. Example: 500 Internal Server Error, 502 Bad Gateway, 503 Service Unavailable."
+
+# ── Transport Layer ────────────────────────────────────────────────────────
+
+[[templates]]
+id = "tcp-vs-udp"
+type = "standard"
+knowledge_type = "declarative"
+question = "Compare TCP and UDP across reliability, ordering, overhead, flow control, and application suitability. Which transport protocol would you choose for real-time video streaming and why?"
+answer = "| Property | TCP | UDP |\n|----------|-----|-----|\n| Connection | Connection-oriented (3-way handshake) | Connectionless |\n| Reliability | Reliable (ACKs + retransmission) | Unreliable (no ACKs) |\n| Ordering | In-order delivery (sequence numbers) | No ordering guarantee |\n| Header size | 20 bytes min | 8 bytes |\n| Flow control | Sliding window (receiver window) | None |\n| Congestion ctrl | AIMD, Slow Start, Fast Recovery | None |\n| State at sender | Sequence number, window, buffers | Stateless |\n| Suitability | Web, email, file transfer, remote shell | VoIP, video streaming, DNS, gaming |\n\nFor real-time video streaming: UDP is preferred because retransmissions from TCP introduce variable delay (jitter) that disrupts playback. A few lost packets cause minor visual artifacts; a delayed retransmitted packet is useless. Application-layer mechanisms (adaptive bitrate, FEC) handle loss better than TCP's retransmission model."
+
+[[templates]]
+id = "three-way-handshake-why"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "Why does TCP use a three-way handshake (SYN, SYN-ACK, ACK) rather than a two-way handshake to establish a connection?"
+answer = "A two-way handshake cannot handle duplicated or delayed SYN segments from earlier connections (the 'half-open connection' problem). An old duplicate SYN arriving at a server would cause it to allocate resources and believe a connection exists, wasting memory and potentially corrupting data if the old source sends packets.\n\nThe three-way handshake solves this by having the client echo the server's initial sequence number (ISN). The exchange:\n1. Client → Server: SYN with ISN_c\n2. Server → Client: SYN-ACK with ISN_s, ACK(ISN_c+1)\n3. Client → Server: ACK(ISN_s+1)\n\nThe server only considers the connection established after receiving step 3. If the original SYN was a duplicate, the client never responds with ACK (it has no knowledge of this connection), so the server times out and releases resources. Additionally, both sides agree on initial sequence numbers, preventing sequence number confusion. The handshake also negotiates MSS, window scaling, and other TCP options."
+
+[[templates]]
+id = "tcp-flow-control"
+type = "debug-find"
+knowledge_type = "procedural"
+question = "Find the bug: A sender's TCP connection achieves very low throughput even though the network has abundant bandwidth. The receiver window (rwnd) advertised is 65535 bytes and never shrinks. Wireshark shows the sender's congestion window rarely exceeds 10 segments (MSS = 1460). What is the likely cause?"
+answer = "The bug is likely the send buffer being too small at the application level, or the sender not using window scaling (the TCP Window Scale option from RFC 7323). A rwnd of 65535 bytes limits in-flight data to ~45 segments (65535/1460 ≈ 45) at most. But the congestion window is only ~10 segments — this is NOT the rwnd limit (10 × 1460 = 14600 ≪ 65535).\n\nThe likely cause: the sender application is not writing data fast enough (small send buffer or the application does blocking writes that stall), OR the socket send buffer is too small (default ~16KB on many OS). The sender's available send buffer space (not rwnd) limits how much data TCP can have in flight. Fix: increase SO_SNDBUF socket buffer size (e.g., to 256KB) and ensure the application fills the buffer efficiently (e.g., use writev() or non-blocking I/O). The sender's usable window = min(cwnd, rwnd, available send buffer). Here, send buffer is the bottleneck."
+
+# ── Congestion Control ─────────────────────────────────────────────────────
+
+[[templates]]
+id = "tcp-congestion-phases"
+type = "standard"
+knowledge_type = "declarative"
+question = "What are the phases of TCP congestion control (Tahoe and Reno)? Describe the window evolution in each phase and the events that trigger transitions."
+answer = "TCP Tahoe:\n1. Slow Start (SS): cwnd = 1 MSS, doubles every RTT (exponential). Transition: on triple duplicate ACK → cwnd = 1, ssthresh = cwnd/2 (goes back to SS). On RTO timeout → same.\n2. Congestion Avoidance (CA): cwnd increases by 1 MSS per RTT (linear/AIMD). Transition: on loss → back to SS.\n\nTCP Reno (adds Fast Recovery):\n1. Slow Start: same as Tahoe. Transition to CA when cwnd ≥ ssthresh.\n2. Congestion Avoidance: linear increase. On triple duplicate ACK → ssthresh = cwnd/2, cwnd = ssthresh + 3, enter Fast Recovery.\n3. Fast Recovery: inflate cwnd by 1 MSS per duplicate ACK (allowing new packets). When new ACK arrives (for retransmitted segment), cwnd = ssthresh, return to CA.\n4. Timeout Recovery: on RTO expiry, ssthresh = cwnd/2, cwnd = 1, restart Slow Start.\n\nTCP Reno handles a single packet loss better (no full restart), while multiple losses in one window still degrade to timeout."
+
+[[templates]]
+id = "tcp-congestion-window-trace"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Trace cwnd evolution for a TCP Reno connection (MSS = 1460 bytes) over the first 12 RTTs. Start cwnd = 1 MSS, ssthresh = 64 MSS. A single packet loss occurs at RTT 10 (triple duplicate ACK). Show the state transitions and cwnd value after each RTT."
+answer = "Initial: cwnd = 1, ssthresh = 64, state = Slow Start\nRTT 1: cwnd = 2 (SS, double)\nRTT 2: cwnd = 4 (SS)\nRTT 3: cwnd = 8 (SS)\nRTT 4: cwnd = 16 (SS)\nRTT 5: cwnd = 32 (SS)\nRTT 6: cwnd = 64 (SS, cwnd = ssthresh)\nRTT 7: cwnd = 65 (transition to CA: +1 MSS per RTT)\nRTT 8: cwnd = 66 (CA)\nRTT 9: cwnd = 67 (CA)\nRTT 10: triple duplicate ACK received (packet lost).\n  → ssthresh = cwnd/2 = 33, cwnd = ssthresh + 3 = 36 (Fast Recovery)\n  → During FR: each duplicate ACK increments cwnd by 1 (transmits new data).\nRTT 10-11: (within same RTT window) Retransmitted segment's ACK arrives.\n  → cwnd = ssthresh = 33, enter CA.\nRTT 11: cwnd = 34 (CA, additive increase)\nRTT 12: cwnd = 35 (CA)\n\nSummary:\n- SS: RTT0-6 (1 → 64, exponential)\n- CA: RTT7-9 (65 → 67, linear)\n- Loss → Fast Recovery: cwnd = 36\n- End FR back to CA: RTT10-12 (33 → 35)\n\nWithout loss, cwnd would be ~75 at RTT12."
+
+[[templates]]
+id = "aimd-fairness"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "Why does TCP's Additive Increase Multiplicative Decrease (AIMD) lead to convergence to fairness when multiple TCP flows share a bottleneck link?"
+answer = "AIMD drives flows toward fairness because of its asymmetric reaction to congestion:\n\nAdditive Increase (AI): each flow increases its cwnd by 1 MSS per RTT regardless of current window size. This means all flows increase at the same ABSOLUTE rate, not proportionally — small flows and large flows both add 1 MSS per RTT.\n\nMultiplicative Decrease (MD): on packet loss, each flow halves its cwnd. This is a proportional decrease — a flow with cwnd=100 goes to 50, a flow with cwnd=10 goes to 5.\n\nThe key insight: after a congestion event, the flows that were using more bandwidth lose MORE bandwidth (in absolute terms) than smaller flows. During the subsequent additive increase, all flows grow at the same absolute rate. Over multiple congestion cycles, the smaller flow catches up.\n\nMathematically (Chiu & Jain, 1989): after n cycles with two flows (x, y), the ratio x/y approaches 1 because the multiplicative decrease shrinks the gap proportionally while the additive increase shrinks it absolutely. This converges to fairness + efficiency (the efficiency line lies on x+y = C, the fairness line on x = y, and they intersect at the optimal point)."
+
+# ── Network Layer ─────────────────────────────────────────────────────────
+
+[[templates]]
+id = "ip-best-effort-why"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "Why does the network layer (IP) provide only best-effort delivery instead of guaranteeing packet delivery, ordering, or integrity?"
+answer = "The end-to-end principle (Saltzer, Reed, Clark, 1984) argues that reliability mechanisms belong at the transport layer edges, not in the network core. IP best-effort keeps routers simple and fast:\n\n- Routers perform O(1) per-packet forwarding (lookup next hop, decrement TTL, recompute checksum, forward) — no per-flow state, no ACK processing, no retransmission buffers.\n- This stateless design allows the Internet to scale to billions of nodes and handle arbitrary link failures via dynamic routing (OSPF, BGP).\n- Applications have different reliability needs: file transfer needs 100% reliability (TCP); real-time voice tolerates some loss (UDP). Implementing reliability in the network would force ALL traffic to pay the cost.\n- Making IP reliable would add unbounded state, reduce throughput (ACK clocking), and violate layer independence — lower layers should not know about higher-layer requirements.\n\nExceptions: ICMP provides limited feedback (Destination Unreachable, Time Exceeded) but does NOT make IP reliable."
+
+[[templates]]
+id = "subnetting-bug"
+type = "debug-find"
+knowledge_type = "procedural"
+question = "Find the bug: Host A is configured with IP 192.168.1.10/24 and Host B with IP 192.168.2.10/24. Both are plugged into the same Ethernet switch (no router). Both have default gateway 192.168.1.1. Host A cannot ping Host B, but both can ping 192.168.1.1. What is misconfigured and how would you fix it?"
+answer = "Bug: Host A (192.168.1.10/24, network = 192.168.1.0) and Host B (192.168.2.10/24, network = 192.168.2.0) are on different subnets. With /24 netmasks, each host determines the destination is NOT on its local subnet, so it sends the packet to its default gateway (192.168.1.1).\n\nBut Host B's default gateway is also 192.168.1.1 — this IP is on Host A's subnet, NOT on Host B's subnet (192.168.2.0/24). Host B cannot reach 192.168.1.1 directly because 192.168.1.1 is outside its local network. Even if it ARPs for 192.168.1.1, the gateway may not respond on B's broadcast domain.\n\nFixes:\n1. Use a single subnet: change both to 192.168.1.0/24 (e.g., A=192.168.1.10, B=192.168.1.20). Then direct ARP + Ethernet works.\n2. Use a /23 mask (255.255.254.0) on both: network = 192.168.0.0/23, which includes both 192.168.1.x and 192.168.2.x. Then both hosts see each other as local.\n3. Add a router between the two subnets, configure correct default gateways (A: 192.168.1.1, B: 192.168.2.1), and enable routing."
+
+[[templates]]
+id = "traceroute-trace"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Trace the operation of 'traceroute 8.8.8.8' step by step. Explain how it discovers each hop and measures RTT, and what each column of its output means."
+answer = "Traceroute exploits the TTL (Time-to-Live) field in IP packets:\n\n1. Sends UDP packet to 8.8.8.8:33434 (high port) with TTL=1.\n2. First-hop router receives it, decrements TTL to 0, drops the packet, and sends an ICMP 'Time Exceeded (TTL expired in transit)' message back to the source with its own IP address. Source records the RTT from send to ICMP receipt.\n3. Sends next packet with TTL=2. First router forwards (TTL 2→1), second router decrements 1→0, drops, sends ICMP Time Exceeded. Source records second hop.\n4. Repeats with TTL=3, 4, ... incrementing each time.\n5. When packet reaches 8.8.8.8: the UDP probe hits an unused high port → destination sends ICMP 'Destination Unreachable (Port Unreachable)'. Source receives this → traceroute knows it reached the destination and stops.\n\nEach hop is probed 3 times (3 packets per TTL). Output columns:\n  Hop# | RTT1 | RTT2 | RTT3 | Router hostname (if reverse DNS resolves) | Router IP\nIf no ICMP response within timeout (default 5s), shows '* * *'.\n\nModern traceroute variants (OS X/macOS, Windows tracert) use ICMP Echo requests instead of UDP."
+
+# ── Link Layer ────────────────────────────────────────────────────────────
+
+[[templates]]
+id = "csma-cd-vs-csma-ca"
+type = "standard"
+knowledge_type = "declarative"
+question = "Compare CSMA/CD (Ethernet) with CSMA/CA (802.11 WiFi). Why does WiFi use CSMA/CA instead of CSMA/CD?"
+answer = "CSMA/CD (Carrier Sense Multiple Access with Collision Detection):\n- Listen before transmit. If channel idle, transmit.\n- If collision detected (voltage/current change on the wire during transmission), transmit a 32-bit jam signal to notify all stations.\n- Run truncated binary exponential backoff: each retry doubles the contention window (slot times × random factor).\n- Collision detection is possible because wired Ethernet is full-duplex capable and the sender can compare transmitted vs received signals in real-time.\n\nCSMA/CA (Collision Avoidance):\n- Listen before transmit. If channel busy, defer.\n- If channel idle for DIFS (DCF Interframe Space) period, wait an additional random backoff time before transmitting.\n- No collision detection because:\n  1. Hidden terminal problem: Station A (near AP) cannot hear Station C (near AP but far from A). A can't detect C's transmission.\n  2. Radio hardware is half-duplex — cannot transmit and receive simultaneously on the same frequency (transmit power drowns received signal).\n  3. Near-far problem: a close transmitter's signal overwhelms a distant transmitter's signal.\n- Mitigation: RTS/CTS handshake (Request-to-Send/Clear-to-Send) reserves the medium for large packets (default threshold ~2347 bytes in 802.11). CTS is sent by the AP and heard by ALL stations, solving the hidden terminal problem."
+
+[[templates]]
+id = "arp-cache-bug"
+type = "debug-find"
+knowledge_type = "procedural"
+question = "Find the bug: A server at 10.0.1.100 is replaced due to hardware failure. The new server has the same IP address but a different NIC (new MAC address). After the swap, most clients connected to the same switch can reach the new server immediately, but a few clients cannot reach it for 2-5 minutes. What causes the delay and how do you fix it?"
+answer = "Bug: Stale ARP cache entries. The clients that cannot reach the server still have the old server's IP-to-MAC mapping cached in their ARP table (e.g., 10.0.1.100 → old-MAC). When they send frames to the old MAC address, those frames are silently dropped because no device on the network responds to that MAC anymore.\n\nClients that CAN reach the server either (1) did not have a cached ARP entry (they send an ARP request and get the new MAC immediately), or (2) their ARP cache already timed out.\n\nDefault ARP cache timeout varies by OS: Linux ~60s (reachable), Windows ~120-300s (depending on state). This explains the 2-5 minute delay.\n\nFixes:\n1. Best: The new server should send a Gratuitous ARP (GARP) broadcast immediately after boot — announcing '10.0.1.100 is at new-MAC' — which updates all listening hosts' ARP caches proactively.\n2. Clear ARP cache on affected clients (e.g., `arp -d 10.0.1.100` on Linux, `arp -d` on Windows).\n3. Reduce ARP cache timeout (not recommended — increases ARP traffic).\n4. Use static ARP entries for critical servers (high maintenance)."
+
+# ── Wireless & Security ───────────────────────────────────────────────────
+
+[[templates]]
+id = "wifi-hidden-terminal"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "What is the hidden terminal problem in 802.11 wireless networks, and how does the RTS/CTS mechanism solve it?"
+answer = "The hidden terminal problem occurs when two stations (A and C) are both within range of the Access Point (B) but out of range of each other. A and C cannot detect each other's transmissions through carrier sensing alone, because radio signals attenuate over distance and may be blocked by obstacles.\n\nScenario:\n- A transmits to B. C, sensing the medium (but not hearing A), thinks the channel is idle and also transmits to B.\n- A and C's frames collide at B — B receives neither.\n- Both A and C run exponential backoff, but may collide again.\n\nRTS/CTS (Request-to-Send/Clear-to-Send) solution (IEEE 802.11 optional, enabled above a configurable packet size threshold):\n1. A sends RTS frame to B (includes duration of the planned transmission — the Network Allocation Vector or NAV). All stations hearing this defer for that duration.\n2. B replies with CTS frame (echoes the duration). ALL stations within B's range hear the CTS and defer — including C (the hidden terminal).\n3. A transmits data. C is silent (it heard B's CTS and set NAV).\n4. B sends ACK when data received correctly.\n\nRTS/CTS trades channel overhead (two extra control frames) for collision reduction — it's worthwhile for large packets (default threshold ~2347 bytes on Cisco, ~256 bytes on some adapters). For small packets, the overhead outweighs the benefit."
+
+[[templates]]
+id = "tls-handshake-trace"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Trace the TLS 1.3 handshake between a client and server. List each message, what it contains, and how the session keys are derived."
+answer = "TLS 1.3 handshake (1-RTT, simplified):\n\nPhase 1 — Key Exchange:\n1. Client → Server: ClientHello\n   - Supported protocol versions (e.g., TLS 1.3, 1.2)\n   - Client random (32 bytes)\n   - Cipher suites (e.g., TLS_AES_256_GCM_SHA384)\n   - Key share: client's ephemeral Diffie-Hellman public key (e.g., X25519)\n   - Supported groups, extensions (SNI, ALPN)\n\n2. Server → Client: ServerHello\n   - Selected protocol version (TLS 1.3)\n   - Server random (32 bytes)\n   - Selected cipher suite\n   - Key share: server's ephemeral DH public key\n   → Both sides now compute shared secret via ECDHE (key agreement protocol).\n   → Derive Handshake Secret → derive traffic keys.\n   - EncryptedExtensions (ALPN, SNI response)\n   - Certificate (server's X.509 cert chain)\n   - CertificateVerify (signature over handshake transcript proving possession of private key)\n   - Finished (MAC of handshake transcript, encrypted with handshake traffic key)\n\n3. Client → Server: Finished\n   - MAC of full handshake transcript (proves client participated in handshake)\n   → Derive Application Traffic Secret (session keys for data encryption).\n   → Application Data (encrypted, authenticated with AEAD).\n\nTotal: 2 round trips → 1 RTT for handshake + 0-RTT resumption possible with pre-shared keys.\n\nNo separate ChangeCipherSpec in TLS 1.3 (present only for middlebox compatibility). All handshake messages after ServerHello are encrypted."
+
+[[templates]]
+id = "tls-version-mismatch"
+type = "debug-find"
+knowledge_type = "procedural"
+question = "Find the bug: A company deploys an HTTPS server configured to accept TLS 1.2 only. An embedded IoT device running an old firmware fails to connect with the error 'protocol version mismatch'. The device's specification says it supports 'SSL 3.0'. What is the root cause and what are the possible fixes, in order of security preference?"
+answer = "Root cause: The server accepts TLS 1.2 minimum. The client only supports SSL 3.0 (released 1996, deprecated by RFC 7568 in 2015). SSL 3.0 and TLS are NOT backwards-compatible at the protocol level — they differ in handshake messages, record format, and cipher suites. During the handshake, the ClientHello advertises SSL 3.0; the ServerHello requires TLS 1.2+; the server responds with a fatal alert (protocol_version), and the connection fails.\n\nFixes (in order of security preference):\n1. Update the IoT device firmware to support TLS 1.2 (best — SSL 3.0 has known critical vulnerabilities including POODLE, CVE-2014-3566).\n2. If firmware cannot be updated, deploy a TLS-terminating reverse proxy in front of the server. The proxy terminates SSL 3.0 from the device externally and connects to the internal server using TLS 1.2. This limits the SSL 3.0 exposure to a controlled network segment.\n3. Enable TLS 1.0 on the server as a last resort (still vulnerable to BEAST, but better than SSL 3.0).\n\nDO NOT enable SSL 3.0 on any server exposed to untrusted networks — POODLE allows plaintext recovery of HTTP cookies and authentication tokens. Already exploited in the wild since 2014."

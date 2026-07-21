@@ -6,29 +6,24 @@ import (
 	"time"
 )
 
-// DefaultCardState returns a new CardState with SM-2 defaults
-// (easiness factor 2.5, zero repetitions, due immediately).
-func DefaultCardState(id, subjectID string) CardState {
-	now := time.Now()
-	return CardState{
-		ID:             id,
-		SubjectID:      subjectID,
-		EasinessFactor: 2.5,
-		IntervalDays:   0,
-		Repetition:     0,
-		NextReviewAt:   now,
-		CreatedAt:      now,
-	}
+// Scheduler defines the interface for spaced repetition scheduling.
+// Implementations include SM-2 (current) and FSRS (future).
+type Scheduler interface {
+	// ReviewCard applies the scheduling algorithm and returns the updated CardState.
+	ReviewCard(card CardState, quality ReviewQuality) CardState
 }
+
+// SM2Scheduler implements the SM-2 spaced repetition algorithm.
+type SM2Scheduler struct{}
 
 // ReviewCard applies the SM-2 algorithm and returns the updated CardState.
 //
 // The algorithm:
 //   - Updates easiness factor from the quality rating.
-//   - For correct recall (quality ≥ 3): grows the repetition count and interval.
+//   - For correct recall (quality >= 3): grows the repetition count and interval.
 //   - For incorrect recall (quality < 3): resets repetition and interval to 1 day.
 //   - Sets NextReviewAt to time.Now() + interval days.
-func ReviewCard(card CardState, quality ReviewQuality) CardState {
+func (s *SM2Scheduler) ReviewCard(card CardState, quality ReviewQuality) CardState {
 	out := card
 
 	// ── Update easiness factor ──────────────────────────────────────────
@@ -62,4 +57,26 @@ func ReviewCard(card CardState, quality ReviewQuality) CardState {
 	out.NextReviewAt = time.Now().AddDate(0, 0, out.IntervalDays)
 
 	return out
+}
+
+// DefaultCardState returns a new CardState with SM-2 defaults
+// (easiness factor 2.5, zero repetitions, due immediately).
+func DefaultCardState(id, subjectID string) CardState {
+	now := time.Now()
+	return CardState{
+		ID:             id,
+		SubjectID:      subjectID,
+		EasinessFactor: 2.5,
+		IntervalDays:   0,
+		Repetition:     0,
+		NextReviewAt:   now,
+		CreatedAt:      now,
+	}
+}
+
+// ReviewCard is a convenience wrapper calling the default SM-2 scheduler.
+var defaultScheduler Scheduler = &SM2Scheduler{}
+
+func ReviewCard(card CardState, quality ReviewQuality) CardState {
+	return defaultScheduler.ReviewCard(card, quality)
 }

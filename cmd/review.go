@@ -2,15 +2,20 @@ package cmd
 
 import (
 	"fmt"
-	"math"
+	"math/rand/v2"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/B67687/Oh-My-Learner/core"
+	"github.com/spf13/cobra"
 )
+
+var reviewMode string
+
+type cardWithType struct {
+	card     core.CardState
+	template *core.CardWithTemplate
+}
 
 var reviewCmd = &cobra.Command{
 	Use:   "review",
@@ -24,7 +29,9 @@ Supports multiple template types:
 - standard: Q&A (existing)
 - code-trace: what does this code output?
 - debug-find: what is the bug in this code?
-- explain-why: explain why this concept works this way`,
+- explain-why: explain why this concept works this way
+
+With --mode speed, the self-explanation step is skipped for faster reviews.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		store, err := core.NewStorage(getDBPath())
 		if err != nil {
@@ -33,130 +40,111 @@ Supports multiple template types:
 		defer store.Close()
 
 		now := time.Now()
-		cards, err := store.DueCards(now)
+
+		// ── Load all due cards ──────────────────────────────────────────────
+		allCards, err := store.DueCards(now)
 		if err != nil {
 			return fmt.Errorf("failed to get due cards: %w", err)
 		}
 
-		if len(cards) == 0 {
+		if len(allCards) == 0 {
 			fmt.Println("No cards due for review. Great work!")
 			return nil
 		}
 
-		// Count unique subjects for interleaving display.
-		subjects := make(map[string]int)
-		for _, c := range cards {
-			subjects[c.SubjectID]++
+		// ── Backlog forgiveness: cap to daily limit ─────────────────────────
+		limit := getDailyReviewLimit()
+		if len(allCards) > limit {
+			rand.Shuffle(len(allCards), func(i, j int) {
+				allCards[i], allCards[j] = allCards[j], allCards[i]
+			})
+			allCards = allCards[:limit]
 		}
 
-		fmt.Printf("\n  Session: %d cards across %d subjects\n", len(cards), len(subjects))
-		if len(cards) < 10 {
-			fmt.Println("  Tip: fewer than 10 cards due - interleaving works best with more cards.")
-		} else if len(subjects) < 2 && len(cards) >= 10 {
-			fmt.Println("  Tip: all cards are from one subject. Add another subject for interleaving benefits.")
+		loaded := make([]cardWithType, 0, len(allCards))
+		for _, c := range allCards {
+			cwt, err := store.GetCardWithTemplate(c.ID)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error loading template for card %s: %v\n", c.ID, err)
+				continue
+			}
+			loaded = append(loaded, cardWithType{
+				card:     c,
+				template: cwt,
+			})
 		}
+		if len(loaded) == 0 {
+			fmt.Println("No reviewable cards found.")
+			return nil
+		}
+
+		// Split into procedural (interleaved) and declarative (blocked by subject).
+		var procedural []cardWithType
+		declarativeBySubject := make(map[string][]cardWithType)
+
+		for _, cwt := range loaded {
+			if cwt.template.KnowledgeType == core.KnowledgeProcedural {
+				procedural = append(procedural, cwt)
+			} else {
+				declarativeBySubject[cwt.template.State.SubjectID] = append(declarativeBySubject[cwt.template.State.SubjectID], cwt)
+			}
+		}
+
+		// Build session order: procedural first (interleaved), then declarative blocked by subject.
+		rand.Shuffle(len(procedural), func(i, j int) {
+			procedural[i], procedural[j] = procedural[j], procedural[i]
+		})
+
+		var sessionCards []cardWithType
+		sessionCards = append(sessionCards, procedural...)
+
+		// Add declarative subjects in random order, but cards within each subject kept together.
+		subjectOrder := make([]string, 0, len(declarativeBySubject))
+		for s := range declarativeBySubject {
+			subjectOrder = append(subjectOrder, s)
+		}
+		rand.Shuffle(len(subjectOrder), func(i, j int) {
+			subjectOrder[i], subjectOrder[j] = subjectOrder[j], subjectOrder[i]
+		})
+		for _, s := range subjectOrder {
+			sessionCards = append(sessionCards, declarativeBySubject[s]...)
+		}
+
+		subjects := make(map[string]int)
+		for _, cwt := range loaded {
+			subjects[cwt.template.State.SubjectID]++
+		}
+
+		fmt.Printf("\n  Session: %d cards across %d subjects (procedural interleaved, declarative blocked)\n",
+			len(sessionCards), len(subjects))
+		fmt.Printf("  Mode: %s\n", reviewMode)
 		fmt.Println()
 
-		for i, card := range cards {
-			cwt, err := store.GetCardWithTemplate(card.ID)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error loading template for card %s: %v\n", card.ID, err)
-				continue
-			}
+		totalRecalled, totalReviewed, err := runReviewSession(sessionCards, store)
+		if err != nil {
+			return err
+		}
 
-			tmpl := core.Template{
-				ID:               cwt.State.ID,
-				SubjectID:        cwt.State.SubjectID,
-				Type:             cwt.Type,
-				QuestionTemplate: cwt.QuestionTemplate,
-				AnswerTemplate:   cwt.AnswerTemplate,
-				Variables:        cwt.Variables,
-			}
+		// ── Session summary ────────────────────────────────────────────────
+		today := time.Now().Format("2006-01-02")
+		if err := store.UpdateStreak(today); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to update streak: %v\n", err)
+		}
+		if err := store.LogDailyActivity(today, totalReviewed, totalRecalled); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to log daily activity: %v\n", err)
+		}
 
-			rendered, err := core.RenderTemplate(tmpl)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error rendering card %s: %v\n", card.ID, err)
-				continue
-			}
-
-			// Type-specific display.
-			typeLabel := string(cwt.Type)
-			fmt.Printf("\n  %d/%d -- %s [%s] --\n", i+1, len(cards), card.SubjectID, typeLabel)
-
-			switch cwt.Type {
-			case core.TemplateCodeTrace:
-				fmt.Println("  What does this code output?")
-				fmt.Println("  ```")
-				for _, line := range strings.Split(rendered.Question, "\n") {
-					fmt.Printf("  %s\n", line)
-				}
-				fmt.Println("  ```")
-			case core.TemplateDebugFind:
-				fmt.Println("  What's the bug in this code?")
-				fmt.Println("  ```")
-				for _, line := range strings.Split(rendered.Question, "\n") {
-					fmt.Printf("  %s\n", line)
-				}
-				fmt.Println("  ```")
-			case core.TemplateExplainWhy:
-				fmt.Printf("  Explain why: %s\n", rendered.Question)
-			default:
-				fmt.Printf("  Q: %s\n", rendered.Question)
-			}
-
-			fmt.Print("  [press Enter to reveal answer]")
-			if _, err := readLine(); err != nil {
-				return fmt.Errorf("read error: %w", err)
-			}
-
-			switch cwt.Type {
-			case core.TemplateCodeTrace:
-				fmt.Println("  Output:")
-				fmt.Println("  ```")
-				for _, line := range strings.Split(rendered.Answer, "\n") {
-					fmt.Printf("  %s\n", line)
-				}
-				fmt.Println("  ```")
-			default:
-				fmt.Printf("  A: %s\n", rendered.Answer)
-			}
-
-			var quality core.ReviewQuality
-			for {
-				fmt.Print("  Quality (0-5): ")
-				input, err := readLine()
-				if err != nil {
-					return fmt.Errorf("read error: %w", err)
-				}
-				input = strings.TrimSpace(input)
-				n, err := strconv.Atoi(input)
-				if err != nil || n < 0 || n > 5 {
-					fmt.Println("  Please enter a number between 0 and 5.")
-					continue
-				}
-				quality = core.ReviewQuality(n)
-				break
-			}
-
-			updated := core.ReviewCard(card, quality)
-			if err := store.UpdateCardState(updated); err != nil {
-				return fmt.Errorf("failed to update card: %w", err)
-			}
-			if err := store.InsertReview(card.ID, uint8(quality)); err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: failed to record review: %v\n", err)
-			}
-
-			daysUntil := time.Until(updated.NextReviewAt).Hours() / 24
-			switch {
-			case daysUntil < 1:
-				fmt.Println("  Next review: tomorrow")
-			case daysUntil < 2:
-				fmt.Println("  Next review: in 1 day")
-			default:
-				fmt.Printf("  Next review: in %d days\n", int(math.Ceil(daysUntil)))
-			}
+		streak, err := store.GetStreak()
+		if err == nil {
+			fmt.Printf("\n  Session complete! %d/%d recalled\n", totalRecalled, totalReviewed)
+			fmt.Printf("  Current streak: %d days (longest: %d)\n", streak.CurrentStreak, streak.LongestStreak)
 		}
 
 		return nil
 	},
+}
+
+func init() {
+	reviewCmd.Flags().StringVarP(&reviewMode, "mode", "m", "normal",
+		"Review mode: 'normal' (with self-explanation) or 'speed' (skip self-explanation)")
 }

@@ -1,0 +1,22 @@
+[
+  {
+    "type": "multiple-choice",
+    "question": "What is 2+2?",
+    "answer": "4"
+  },
+  {
+    "type": "standard",
+    "question": "",
+    "answer": "Some answer"
+  },
+  {
+    "type": "standard",
+    "question": "What is a valid question?",
+    "answer": ""
+  },
+  {
+    "type": "",
+    "question": "What is this?",
+    "answer": "Unknown"
+  }
+]

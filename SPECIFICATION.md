@@ -1,167 +1,133 @@
-# SPECIFICATION.md — The Plan IS the Spec (oh-my-learner)
-
----
-
-## 0. Constitution
-
-1. **Active recall is the core** — every feature must directly or indirectly increase the amount of active retrieval practice the user does. Passive consumption features are out of scope.
-2. **No card-writing burden** — the user's energy goes to answering, not authoring. Template-based generation only.
-3. **Desirable difficulty** — features that feel harder (interleaving, mixed subjects) but produce better retention are prioritized over features that feel easier (points, badges).
-4. **Evidence-based** — every feature must be supported by at least one study from the learning science research (`docs/research/learning-science.md`).
-5. **Offline-first** — no cloud, no accounts, no sync. The tool is a local CLI.
+# SPECIFICATION: Oh-My-Learner v3
 
 ## 1. Overview
 
-**Ambition:** A CLI that generates practice problems from templates and schedules them with spaced repetition + interleaving, helping the user learn more efficiently for university CS (and beyond).
+**X:** CS knowledge retention across semesters is poor, causing cumulative re-learning stress before exams.
+**Solution:** CLI study tool with AI-generated flashcards, spaced repetition (SM-2 with FSRS path), selective interleaving, and adherence infrastructure.
+**User:** NTU CS Y2 student building alongside semester studies.
+**Appetite:** 3 weeks.
 
-**Success criteria:**
-- WHEN a subject template pack is installed THEN the user can start reviewing immediately without writing any cards
-- WHEN a review session runs THEN it includes cards from multiple subjects and template types (interleaving)
-- WHEN the user has completed 100 reviews THEN retention is >=85% on cards due for review
-
-**OUT OF SCOPE (V1):**
-- Web UI or GUI (CLI only)
-- Cloud sync or accounts (offline-only)
-- Anki import/export
-- AI/LLM generation (templates are deterministic)
-- Points, badges, leaderboards
-
-## 2. Architecture & Design Decisions
-
-**Decision 1: Go language (unchanged)**
-> In the context of an existing ~1,500-line Go codebase with working scheduler, storage, and templater,
-> facing the tradeoff between Go (fast, single binary, simple) and Python (richer text ecosystem),
-> we decided for **staying with Go**,
-> to achieve zero rewrite cost and ship within the 3-week timebox,
-> accepting that Go is more verbose for text manipulation tasks.
-
-**Decision 2: SM-2 scheduler (unchanged)**
-> In the context of a CLI starting from zero user data,
-> facing the tradeoff between SM-2 (simple, proven, works from day one) and FSRS (state-of-the-art, needs 1000+ reviews to train),
-> we decided for **SM-2** with a clear upgrade path to FSRS,
-> to achieve immediate usable scheduling without a cold-start problem,
-> accepting that users switching from Anki will feel the schedule is less precise.
-
-**Decision 3: Add interleaving to the scheduler**
-> In the context of strong evidence (Bjork 1992, Rohrer 2012) that interleaving improves long-term retention,
-> facing the constraint that the existing SM-2 scheduler schedules cards independently,
-> we decided for a **session-level interleaving layer** that draws from all due cards across subjects,
-> to achieve the retention benefit without modifying the SM-2 algorithm,
-> accepting that sessions will feel harder and require a minimum of 10-15 cards per session.
-
-Alternatives considered:
-- Per-subject sessions (no interleaving) — rejected because interleaving is the highest-evidence addition we can make
-
-## 3. File Tree & Module Responsibilities
+## 2. Architecture
 
 ```
 oh-my-learner/
-├── main.go — Entry point, thin cobra wrapper
-├── cmd/ — CLI commands (cobra)
-│   ├── root.go — Root command, global flags
-│   ├── add.go — `learn add <subject>` — install template packs
-│   ├── review.go — `learn review` — run a review session (UPDATED: interleaving)
-│   ├── status.go — `learn status` — show due counts, streak
-│   ├── config.go — `learn config` — settings management
-│   └── map.go — `learn map` — dependency visualization (NEW)
-├── core/ — Library: scheduler, templater, storage
-│   ├── core.go — Public API, types
-│   ├── scheduler.go — SM-2 algorithm (UNCHANGED — interleaving lives at session level)
-│   ├── scheduler_test.go — SM-2 tests (already comprehensive at 158 lines)
-│   ├── storage.go — SQLite persistence
-│   ├── templater.go — Template-based problem generation
-│   └── templater_test.go — Template tests (201 lines)
-├── subjects/ — Template packs (TOML)
-└── docs/research/learning-science.md — Research backing (NEW, 505 lines)
+├── cmd/        # 10 CLI commands (thin layer)
+├── core/       # Types, SM-2/FSRS scheduler, SQLite storage (5 files)
+├── agent/      # DeepSeek AI card generation via net/http
+└── subjects/   # TOML subject packs per course
 ```
 
-## 4. CI, Tooling & Quality Gates
+**Key design decisions:**
 
-WHEN a pull request is opened
-THEN CI SHALL run `go build ./...`
-WHERE compilation fails
-THEN CI SHALL fail with exit code 1
+- Go CLI binary (no CGO, no external deps beyond cobra/sqlite/toml)
+- Scheduler interface: SM-2 now, FSRS swap-ready
+- Knowledge-type-aware interleaving (procedural interleaved, declarative blocked)
+- Backlog forgiveness, streak with 2-day grace, shell/tmux hooks
 
-WHEN a pull request is opened
-THEN CI SHALL run `go test ./... -count=1`
-WHERE any test fails
-THEN CI SHALL fail with the failing test output
+## 3. Intent
 
-WHEN a pull request is opened
-THEN CI SHALL run `go vet ./...`
-WHERE vet detects issues
-THEN CI SHALL fail with the detected issues
+Retain CS knowledge between semesters without re-learning. Measured by:
 
-Quality gates: compiles + all tests pass + go vet clean
-Release: git tag v{semver} + optional binary build
+1. Review streak >= 5 days during semester (>3/week)
+2. Retention rate > 80% for cards > 30 days old
+3. User reports reduced exam stress vs pre-tool baseline
 
-## 5. Dependencies
+## 4. File Tree
 
-| Package | Version | Purpose | Contract |
-|---------|---------|---------|----------|
-| `spf13/cobra` | latest | CLI framework | Standard cobra command interface |
-| `modernc.org/sqlite` | latest | Pure Go SQLite (no CGO) | Standard SQL driver |
-| `pelletier/go-toml/v2` | latest | Template pack parsing | Standard TOML marshal/unmarshal |
+```
+subjects/algorithms.toml
+subjects/operating-systems.toml
+subjects/automata.toml
+subjects/software-engineering.toml
+subjects/networks.toml
+subjects/sth.toml
+```
 
-**No new runtime dependencies** for the V1 additions. Interleaving, new template types, and priority metadata are pure Go.
+5 subject packs for Y2S1 (OS already exists, 4 new). Each: 10-15 templates, mixed knowledge types.
 
-## 6. UX & Interface Contract
+## 5. CI
 
-**Entry points:**
-- `learn add <subject>` — install a template pack
-- `learn review` — start an interleaved review session
-- `learn status` — show due counts, streak, progress
-- `learn map <subject>` — show topic dependency graph (NEW)
-- `learn config` — view/edit settings
+- `go build ./...`
+- `go test ./... -count=1`
+- `go vet ./...`
+- Go 1.22/1.23 matrix
 
-**User-facing behavior:**
-WHEN a user runs `learn review`
-THEN the system SHALL build a session from all due cards across ALL subjects
-WHERE there is at least 1 due card
-THEN the system SHALL present cards in random order (subject-mixed)
-WHERE there are fewer than 10 due cards
-THEN the system SHALL prompt "only N cards due. Add more subjects?"
+## 6. UX
 
-**Error contract:**
-| Condition | Error | Handling |
-|-----------|-------|----------|
-| No subjects installed | "No subjects found" | Show `learn add` help |
-| No cards due | "Nothing due. Next review: {date}" | Show status instead |
-| Corrupt SQLite DB | "Storage error: {details}" | Suggest restore from backup |
-| Invalid template pack | "Invalid pack: {error}" | Show TOML parsing error with line |
+```
+learn add algorithms        # Install TOML pack
+learn review                # Daily review (interleaved)
+learn status --count        # Due count for shell hooks
+learn report                # Streak, retention, daily activity
+learn explore               # Topic map with card counts
+```
 
-**Interface contract:**
-Module: scheduler
-  Precondition: card exists in storage with valid SM-2 data
-  Postcondition: SM-2 parameters updated, next review date calculated
-  Invariant: interval_0 < interval_N for N in [0,∞)
+## 7. Non-Goals
 
-Module: session builder (NEW — interleaving layer)
-  Precondition: at least 1 card due across all subjects
-  Postcondition: returned session has cards from >=2 subjects (if available)
-  Invariant: no card appears twice in the same session
+- Not a web app, mobile app, or GUI
+- Not a community platform for sharing packs
+- Not Anki-compatible import/export
+- Not a tutor or interactive learning system
 
-## 7. Timeline & Milestones
+## 8. Success Metrics
 
-**Appetite:** 3 weeks before university starts
+| Metric        | Target                                | When   |
+| ------------- | ------------------------------------- | ------ |
+| Subject packs | 5/5 Y2S1 courses covered              | Week 2 |
+| Test count    | >= 40 (was 38)                        | Week 3 |
+| Build         | `go build ./...` clean                | Always |
+| FSRS          | Scheduler interface with FSRS backend | Week 1 |
+| Self-explain  | Responses stored, reviewable          | Week 1 |
 
-| Milestone | What ships | Checkpoint | Acceptance |
-|-----------|------------|------------|------------|
-| **M1 (by end week 1)** | Interleaving + session builder | `learn review` pulls from all subjects mixed | WHEN `learn review` runs with 2+ subjects THEN cards are drawn from both in random order |
-| **M2 (by end week 2)** | New template types + priority metadata | Templates: code-trace, debug-find, explain-why | WHEN a template pack declares its type THEN the correct template engine renders it |
-| **M3 (by end week 3)** | `learn map` + polish | Dependency graph for any installed subject | WHEN `learn map data-structures` runs THEN it shows topics and their prerequisite edges |
+## 9. Timeline
 
-**Circuit breaker:** IF after M1 interleaving degrades SM-2 accuracy (more cards forgotten than expected) THEN the project SHALL reassess whether session-level interleaving conflicts with card-level scheduling.
+| Week       | Deliverable                                                                            |
+| ---------- | -------------------------------------------------------------------------------------- |
+| **Week 1** | FSRS scheduler (go-fsrs or custom impl), self-explain storage, all existing tests pass |
+| **Week 2** | 4 new subject packs (Automata, SE, Networks, STH), verify AI quality                   |
+| **Week 3** | Polish, EXPLAINER, SPEC_SYNC, REVIEW, pack for distribution                            |
 
----
+## 10. Dependencies
 
-## Verification Checklist
+No new external deps beyond what v2 uses:
 
-- [x] All sections filled
-- [x] Out-of-scope list is non-empty
-- [x] Each architecture decision includes a Y-Statement
-- [x] Each CI gate is a concrete command
-- [x] Timeline has a circuit breaker condition
-- [x] Constitution has 5 principles (all research-backed)
-- [x] Module contracts specified for scheduler AND session builder
-- [x] Error contract covers 4 failure conditions
+- `github.com/spf13/cobra`
+- `modernc.org/sqlite`
+- `github.com/pelletier/go-toml/v2`
+
+FSRS: evaluate `go-fsrs` or implement from spec.
+
+## 11. Design for Change Rules
+
+| Rule                                         | Status                                                                          |
+| -------------------------------------------- | ------------------------------------------------------------------------------- |
+| Interface (no interface before 2nd consumer) | Scheduler interface exists (SM-2 only) — FSRS planned as 2nd, OK                |
+| Test contract over implementation            | All tests behavioral — PASS                                                     |
+| Module boundary                              | Package-level in Go — PASS                                                      |
+| Size (250/40 LOC)                            | storage.go split to 4 files (max 194 LOC), review.go split (max 150 LOC) — PASS |
+| Shippable per cycle                          | Each week ships working features — PASS                                         |
+| Appetite before scope                        | 3 weeks, scope adjusted — PASS                                                  |
+| AI code same checks                          | vendored code = hand-code — PASS                                                |
+| Rule of three                                | No premature abstractions — PASS                                                |
+| Core ≠ infrastructure                        | core/ imports sqlite via storage only — PASS                                    |
+| Clean backlog                                | No perpetual backlog — PASS                                                     |
+
+## 12. Documentation Strategy
+
+- README.md — install, commands, usage flow (existing)
+- docs/GLOSSARY.md — 16 learning science terms (existing)
+- docs/ARCHITECTURE.md — macro-to-micro (existing)
+- SPEC-as-built.md — spec fidelity tracking (existing)
+
+## 13. AI Attribution
+
+Cards generated by DeepSeek V4 Flash via `agent/` package. No third-party AI training on user data. Subject packs are TOML files — inspectable, editable, version-controllable.
+
+## 14. Verification Checklist
+
+- [ ] FSRS scheduler passes all SM-2 test cases (retention match)
+- [ ] Self-explain responses stored and retrievable via `learn report`
+- [ ] 5 subject packs installed and reviewable
+- [ ] `go build ./... && go test ./... && go vet ./...` all clean
+- [ ] Student can do one full day of reviews without errors
+- [ ] EXPLAINER, SPEC_SYNC, REVIEW documents produced

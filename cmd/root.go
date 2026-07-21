@@ -28,4 +28,8 @@ func init() {
 	RootCmd.AddCommand(addCmd)
 	RootCmd.AddCommand(statusCmd)
 	RootCmd.AddCommand(configCmd)
+	RootCmd.AddCommand(mapCmd)
+	RootCmd.AddCommand(exploreCmd)
+	RootCmd.AddCommand(reportCmd)
+	RootCmd.AddCommand(hookCmd)
 }

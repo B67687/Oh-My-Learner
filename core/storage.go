@@ -2,11 +2,9 @@ package core
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"time"
+	"os"
 
-	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
 )
 
@@ -14,6 +12,27 @@ import (
 type SubjectCardCount struct {
 	SubjectID string
 	Count     int
+}
+
+// StreakInfo holds the user's current and longest review streak.
+type StreakInfo struct {
+	CurrentStreak  int
+	LongestStreak  int
+	LastReviewDate string
+}
+
+// DailyActivity records a single day's review summary.
+type DailyActivity struct {
+	Date          string
+	CardsReviewed int
+	CardsRecalled int
+}
+
+// WeeklyRetention holds the retention rate for the current week.
+type WeeklyRetention struct {
+	TotalReviewed int
+	TotalRecalled int
+	Rate          float64 // 0.0 to 1.0
 }
 
 // Storage provides SQLite-backed persistence for subjects, cards, and reviews.
@@ -50,6 +69,7 @@ func migrate(db *sql.DB) error {
 		id               TEXT PRIMARY KEY,
 		subject_id       TEXT NOT NULL REFERENCES subjects(id),
 		template_type    TEXT NOT NULL DEFAULT 'standard',
+		knowledge_type   TEXT NOT NULL DEFAULT 'declarative',
 		template_question TEXT NOT NULL,
 		template_answer   TEXT NOT NULL,
 		variables        TEXT NOT NULL,
@@ -74,13 +94,41 @@ func migrate(db *sql.DB) error {
 		PRIMARY KEY (subject_id, prerequisite_id)
 	);
 	CREATE INDEX IF NOT EXISTS idx_prereq_subject ON subject_prerequisites(subject_id);
+	CREATE TABLE IF NOT EXISTS streak (
+		id              INTEGER PRIMARY KEY CHECK (id = 1),
+		current_streak  INTEGER NOT NULL DEFAULT 0,
+		longest_streak  INTEGER NOT NULL DEFAULT 0,
+		last_review_date TEXT
+	);
+	CREATE TABLE IF NOT EXISTS daily_log (
+		date           TEXT PRIMARY KEY,
+		cards_reviewed INTEGER NOT NULL DEFAULT 0,
+		cards_recalled INTEGER NOT NULL DEFAULT 0
+	);
 	`
-	_, err := db.Exec(schema)
-	if err != nil {
+	if _, err := db.Exec(schema); err != nil {
 		return err
 	}
+
+	// Migration: add self_explain_response column to reviews if missing.
+	if _, err := db.Exec(`ALTER TABLE reviews ADD COLUMN self_explain_response TEXT`); err != nil {
+		fmt.Fprintf(os.Stderr, "migration warn: %v\n", err)
+	}
+
+	// Ensure streak singleton row exists.
+	if _, err := db.Exec(`INSERT OR IGNORE INTO streak (id, current_streak, longest_streak) VALUES (1, 0, 0)`); err != nil {
+		fmt.Fprintf(os.Stderr, "migration warn: %v\n", err)
+	}
+
 	// Backfill template_type if column exists but is empty (schema upgrade).
-	_, _ = db.Exec(`UPDATE cards SET template_type = 'standard' WHERE template_type IS NULL OR template_type = ''`)
+	if _, err := db.Exec(`UPDATE cards SET template_type = 'standard' WHERE template_type IS NULL OR template_type = ''`); err != nil {
+		fmt.Fprintf(os.Stderr, "migration warn: %v\n", err)
+	}
+
+	// Backfill knowledge_type for existing cards that may have been created before the column existed.
+	if _, err := db.Exec(`UPDATE cards SET knowledge_type = 'declarative' WHERE knowledge_type IS NULL OR knowledge_type = ''`); err != nil {
+		fmt.Fprintf(os.Stderr, "migration warn: %v\n", err)
+	}
 	return nil
 }
 
@@ -88,278 +136,5 @@ func (s *Storage) Close() error {
 	return s.db.Close()
 }
 
-func (s *Storage) UpsertSubject(id, name string) error {
-	_, err := s.db.Exec(
-		`INSERT OR REPLACE INTO subjects (id, name) VALUES (?, ?)`,
-		id, name,
-	)
-	return err
-}
-
-func (s *Storage) RemoveSubject(id string) error {
-	_, err := s.db.Exec(`DELETE FROM subjects WHERE id = ?`, id)
-	return err
-}
-
-func (s *Storage) Subjects() ([]SubjectDueCount, error) {
-	rows, err := s.db.Query(
-		`SELECT s.id, s.name, COUNT(c.id)
-		   FROM subjects s
-		   LEFT JOIN cards c ON c.subject_id = s.id
-		  GROUP BY s.id, s.name
-		  ORDER BY s.id`,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("query subjects: %w", err)
-	}
-	defer rows.Close()
-
-	var results []SubjectDueCount
-	for rows.Next() {
-		var r SubjectDueCount
-		if err := rows.Scan(&r.ID, &r.Name, &r.DueCount); err != nil {
-			return nil, fmt.Errorf("scan subject: %w", err)
-		}
-		results = append(results, r)
-	}
-	return results, rows.Err()
-}
-
-func (s *Storage) AddCard(tmpl Template) (CardState, error) {
-	id := uuid.New().String()
-	now := time.Now()
-	state := CardState{
-		ID:             id,
-		SubjectID:      tmpl.SubjectID,
-		EasinessFactor: 2.5,
-		IntervalDays:   0,
-		Repetition:     0,
-		NextReviewAt:   now,
-		CreatedAt:      now,
-	}
-	if err := s.InsertCard(state, tmpl); err != nil {
-		return CardState{}, err
-	}
-	return state, nil
-}
-
-// DueCards returns all cards whose next_review_at is at or before now.
-func (s *Storage) DueCards(now time.Time) ([]CardState, error) {
-	nowStr := now.Format(time.RFC3339)
-	rows, err := s.db.Query(
-		`SELECT id, subject_id, easiness_factor, interval_days, repetition,
-		        next_review_at, created_at
-		   FROM cards
-		  WHERE next_review_at <= ?
-	   ORDER BY RANDOM()`, nowStr,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("query due cards: %w", err)
-	}
-	defer rows.Close()
-
-	var cards []CardState
-	for rows.Next() {
-		var (
-			c             CardState
-			nextReviewStr string
-			createdAtStr  string
-		)
-		if err := rows.Scan(
-			&c.ID, &c.SubjectID, &c.EasinessFactor, &c.IntervalDays,
-			&c.Repetition, &nextReviewStr, &createdAtStr,
-		); err != nil {
-			return nil, fmt.Errorf("scan card: %w", err)
-		}
-		c.NextReviewAt, _ = time.Parse(time.RFC3339, nextReviewStr)
-		c.CreatedAt, _ = time.Parse(time.RFC3339, createdAtStr)
-		cards = append(cards, c)
-	}
-	return cards, rows.Err()
-}
-
-// SubjectDueCounts returns per-subject due-card counts at the given time.
-func (s *Storage) SubjectDueCounts(now time.Time) ([]SubjectDueCount, error) {
-	nowStr := now.Format(time.RFC3339)
-	rows, err := s.db.Query(
-		`SELECT s.id, s.name, COUNT(c.id)
-		   FROM subjects s
-		   LEFT JOIN cards c ON c.subject_id = s.id AND c.next_review_at <= ?
-		  GROUP BY s.id, s.name
-		  ORDER BY s.id`, nowStr,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("query subject due counts: %w", err)
-	}
-	defer rows.Close()
-
-	var results []SubjectDueCount
-	for rows.Next() {
-		var r SubjectDueCount
-		if err := rows.Scan(&r.ID, &r.Name, &r.DueCount); err != nil {
-			return nil, fmt.Errorf("scan subject due count: %w", err)
-		}
-		results = append(results, r)
-	}
-	return results, rows.Err()
-}
-
-// GetCardWithTemplate loads a card with its rendering data.
-func (s *Storage) GetCardWithTemplate(cardID string) (*CardWithTemplate, error) {
-	var (
-		cwt           CardWithTemplate
-		nextReviewStr string
-		createdAtStr  string
-		variablesStr  string
-		typeStr       string
-	)
-
-	err := s.db.QueryRow(
-		`SELECT id, subject_id, easiness_factor, interval_days, repetition,
-		        next_review_at, created_at,
-		        template_type, template_question, template_answer, variables
-		   FROM cards WHERE id = ?`, cardID,
-	).Scan(
-		&cwt.State.ID, &cwt.State.SubjectID,
-		&cwt.State.EasinessFactor, &cwt.State.IntervalDays, &cwt.State.Repetition,
-		&nextReviewStr, &createdAtStr,
-		&typeStr, &cwt.QuestionTemplate, &cwt.AnswerTemplate,
-		&variablesStr,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("get card with template: %w", err)
-	}
-
-	cwt.State.NextReviewAt, _ = time.Parse(time.RFC3339, nextReviewStr)
-	cwt.State.CreatedAt, _ = time.Parse(time.RFC3339, createdAtStr)
-	cwt.Type = TemplateType(typeStr)
-
-	if err := json.Unmarshal([]byte(variablesStr), &cwt.Variables); err != nil {
-		return nil, fmt.Errorf("unmarshal variables: %w", err)
-	}
-
-	return &cwt, nil
-}
-
-// InsertCard creates a new card from its state and template data.
-func (s *Storage) InsertCard(state CardState, tmpl Template) error {
-	variablesJSON, err := json.Marshal(tmpl.Variables)
-	if err != nil {
-		return fmt.Errorf("marshal variables: %w", err)
-	}
-
-	_, err = s.db.Exec(
-		`INSERT INTO cards
-		   (id, subject_id, template_type, template_question, template_answer, variables,
-		    easiness_factor, interval_days, repetition, next_review_at, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		state.ID, state.SubjectID,
-		string(tmpl.Type),
-		tmpl.QuestionTemplate, tmpl.AnswerTemplate,
-		string(variablesJSON),
-		state.EasinessFactor, state.IntervalDays, state.Repetition,
-		state.NextReviewAt.Format(time.RFC3339),
-		state.CreatedAt.Format(time.RFC3339),
-	)
-	return err
-}
-
-// UpdateCardState persists SM-2 scheduling fields for an existing card.
-func (s *Storage) UpdateCardState(state CardState) error {
-	_, err := s.db.Exec(
-		`UPDATE cards
-		    SET easiness_factor = ?, interval_days = ?, repetition = ?,
-		        next_review_at = ?
-		  WHERE id = ?`,
-		state.EasinessFactor, state.IntervalDays, state.Repetition,
-		state.NextReviewAt.Format(time.RFC3339),
-		state.ID,
-	)
-	return err
-}
-
-// InsertReview records a review event for audit/analytics.
-func (s *Storage) InsertReview(cardID string, quality uint8) error {
-	id := uuid.New().String()
-	_, err := s.db.Exec(
-		`INSERT INTO reviews (id, card_id, quality, reviewed_at)
-		 VALUES (?, ?, ?, ?)`,
-		id, cardID, quality, time.Now().Format(time.RFC3339),
-	)
-	return err
-}
-
-// SubjectCardCounts returns total card counts per subject.
-func (s *Storage) SubjectCardCounts() ([]SubjectCardCount, error) {
-	rows, err := s.db.Query(
-		`SELECT s.id, COUNT(c.id)
-		   FROM subjects s
-		   LEFT JOIN cards c ON c.subject_id = s.id
-		  GROUP BY s.id
-		  ORDER BY s.id`)
-	if err != nil {
-		return nil, fmt.Errorf("query subject card counts: %w", err)
-	}
-	defer rows.Close()
-
-	var results []SubjectCardCount
-	for rows.Next() {
-		var r SubjectCardCount
-		if err := rows.Scan(&r.SubjectID, &r.Count); err != nil {
-			return nil, fmt.Errorf("scan subject card count: %w", err)
-		}
-		results = append(results, r)
-	}
-	return results, rows.Err()
-}
-
-// SubjectMetas returns all subjects with their names and prerequisites.
-func (s *Storage) SubjectMetas() ([]SubjectMeta, error) {
-	rows, err := s.db.Query(`SELECT id, name FROM subjects ORDER BY id`)
-	if err != nil {
-		return nil, fmt.Errorf("query subjects: %w", err)
-	}
-	defer rows.Close()
-
-	var metas []SubjectMeta
-	for rows.Next() {
-		var m SubjectMeta
-		if err := rows.Scan(&m.ID, &m.Name); err != nil {
-			return nil, fmt.Errorf("scan subject meta: %w", err)
-		}
-		prereqRows, err := s.db.Query(`SELECT prerequisite_id FROM subject_prerequisites WHERE subject_id = ? ORDER BY prerequisite_id`, m.ID)
-		if err != nil {
-			return nil, fmt.Errorf("query prerequisites for %s: %w", m.ID, err)
-		}
-		for prereqRows.Next() {
-			var pid string
-			if err := prereqRows.Scan(&pid); err != nil {
-				prereqRows.Close()
-				return nil, fmt.Errorf("scan prerequisite: %w", err)
-			}
-			m.Prerequisites = append(m.Prerequisites, pid)
-		}
-		prereqRows.Close()
-		metas = append(metas, m)
-	}
-	return metas, rows.Err()
-}
-
-// SetPrerequisites replaces the prerequisite list for a subject.
-func (s *Storage) SetPrerequisites(subjectID string, prereqs []string) error {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback()
-
-	if _, err := tx.Exec(`DELETE FROM subject_prerequisites WHERE subject_id = ?`, subjectID); err != nil {
-		return fmt.Errorf("clear prerequisites: %w", err)
-	}
-	for _, pid := range prereqs {
-		if _, err := tx.Exec(`INSERT INTO subject_prerequisites (subject_id, prerequisite_id) VALUES (?, ?)`, subjectID, pid); err != nil {
-			return fmt.Errorf("insert prerequisite %s: %w", pid, err)
-		}
-	}
-	return tx.Commit()
-}
+// GetDB returns the underlying database handle for custom queries.
+func (s *Storage) GetDB() *sql.DB { return s.db }

@@ -1,0 +1,152 @@
+name = "Operating Systems"
+
+# ── Process Management ──────────────────────────────────────────────────────
+# Declarative: process states, PCB fields, state transitions are facts.
+
+[[templates]]
+id = "process-states"
+type = "standard"
+knowledge_type = "declarative"
+question = "What are the five states in the classic process state model?"
+answer = "The five states are: New (created but not yet admitted), Ready (in memory, waiting for CPU), Running (currently executing on CPU), Blocked/Waiting (waiting for I/O or event), and Terminated (finished execution)."
+
+[[templates]]
+id = "pcb-contents"
+type = "standard"
+knowledge_type = "declarative"
+question = "What information is stored in a Process Control Block (PCB)?"
+answer = "A PCB stores: process ID (PID), program counter, CPU registers, CPU scheduling info (priority, queue pointers), memory management info (page tables, segment tables), I/O status (open file descriptors), and accounting info (CPU time, elapsed time)."
+
+[[templates]]
+id = "context-switch"
+type = "standard"
+knowledge_type = "declarative"
+question = "What happens during a context switch?"
+answer = "The OS saves the current process's state into its PCB (registers, program counter, stack pointer), loads the next process's state from its PCB, and updates the memory management unit (MMU/page table base register). This is pure overhead — the CPU does no useful work during a context switch."
+
+# ── CPU Scheduling ──────────────────────────────────────────────────────────
+# Procedural: applying scheduling algorithms requires computation and comparison.
+
+[[templates]]
+id = "sjf-scheduling"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Given these processes with burst times:\nP1: 6ms, P2: 8ms, P3: 7ms, P4: 3ms\n\nCompute the average waiting time under Shortest-Job-First (non-preemptive) scheduling. All arrive at time 0."
+answer = "Order: P4(3), P1(6), P3(7), P2(8)\nWaiting times: P4=0, P1=3, P3=3+6=9, P2=3+6+7=16\nAverage WT = (0+3+9+16)/4 = 28/4 = 7.0ms"
+
+[templates.variables]
+processes = ["P1:6ms, P2:8ms, P3:7ms, P4:3ms"]
+answer_complexities = ["28/4 = 7.0ms"]
+
+[[templates]]
+id = "rr-scheduling"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Given processes: P1(24ms), P2(3ms), P3(3ms) all at time 0. Using Round Robin with time quantum 4ms, what is the completion order and average turnaround time?"
+answer = "Execution order: P1(0-4), P2(4-7), P3(7-10), P1(10-24)→resumes at 10, runs to 24+? wait: after P3 at 10, P1 runs from 10 to 24 (completes at 24+? Actually P1 had 24-4=20 remaining, runs 10 to 24? No quantum=4 so P1 runs 10-14, then ready queue is empty so P1 runs 14-24).\nWait — ready queue: after P3 at 10, P1 has 20 remaining → runs 10-14 (4ms quantum), queue empty, so P1 continues 14-30-… Let me redo this… Actually: the standard RR for this: P1 runs 0-4 (remaining 20), P2 runs 4-7 (completes, TT=7), P3 runs 7-10 (completes, TT=10), P1 runs 10-30 (completes, TT=30). Average TT = (7+10+30)/3 = 15.67ms."
+
+[templates.variables]
+data = ["P1(24ms), P2(3ms), P3(3ms), quantum=4ms"]
+answer_note = ["Average TT = (7+10+30)/3 = 15.67ms"]
+
+[[templates]]
+id = "priority-scheduling"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Processes: P1(10ms, priority 3), P2(1ms, priority 1), P3(2ms, priority 4), P4(1ms, priority 5), P5(5ms, priority 2). All at time 0. Lower number = higher priority. Using preemptive priority scheduling, what is the average waiting time?"
+answer = "The processes will execute in priority order: P2(1ms, pri=1), P5(5ms, pri=2), P1(10ms, pri=3), P3(2ms, pri=4), P4(1ms, pri=5). All arrive together so no preemption occurs (non-preemptive in practice). WT: P2=0, P5=1, P1=6, P3=16, P4=18. Average = (0+1+6+16+18)/5 = 41/5 = 8.2ms.\n\nNote: if arrivals were staggered, higher-priority processes would preempt lower-priority ones."
+
+[templates.variables]
+data = ["P1(10ms,pri=3), P2(1ms,pri=1), P3(2ms,pri=4), P4(1ms,pri=5), P5(5ms,pri=2)"]
+answer_note = ["Average WT = 41/5 = 8.2ms"]
+
+# ── Synchronization & Deadlocks ─────────────────────────────────────────────
+# Mixed: definitions are declarative, detection algorithms are procedural.
+
+[[templates]]
+id = "critical-section-problem"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "What are the three requirements for a valid solution to the critical section problem?"
+answer = "1. Mutual Exclusion: only one process can execute in the critical section at a time.\n2. Progress: if no process is in the critical section and some processes want to enter, only those not in their remainder sections can participate in deciding who enters next.\n3. Bounded Waiting: there is a bound on the number of times other processes are allowed to enter after a process has requested entry."
+
+[[templates]]
+id = "deadlock-four-conditions"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "What four conditions must hold simultaneously for a deadlock to occur?"
+answer = "The Coffman conditions:\n1. Mutual Exclusion: at least one resource must be held in non-sharable mode.\n2. Hold and Wait: a process holding a resource requests additional resources held by others.\n3. No Preemption: resources cannot be forcibly taken away.\n4. Circular Wait: there exists a circular chain of processes where each holds a resource needed by the next."
+
+[[templates]]
+id = "bankers-algorithm"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "A system has 12 tape drives with allocation: P0:5, P1:2, P2:2. Max: P0:10, P1:4, P2:9. Is the system in a safe state? Compute Available and show the safe sequence."
+answer = "Total=12, Allocated=5+2+2=9, Available=12-9=3\nNeed = Max - Allocated: P0=5, P1=2, P2=7\n\nCheck P1: Need 2 ≤ Available 3 → P1 finishes (releases its 2) → Available=5\nCheck P0: Need 5 ≤ Available 5 → P0 finishes → Available=10\nCheck P2: Need 7 ≤ Available 10 → P2 finishes → Available=17\n\nSafe sequence exists: P1 → P0 → P2. System is in a safe state."
+
+[templates.variables]
+data = ["12 drives, P0:Alloc=5 Max=10, P1:Alloc=2 Max=4, P2:Alloc=2 Max=9"]
+answer_note = ["Safe sequence: P1 → P0 → P2"]
+
+# ── Memory Management ───────────────────────────────────────────────────────
+
+[[templates]]
+id = "paging-vs-segmentation"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "What is the difference between paging and segmentation in memory management?"
+answer = "Paging: divides physical memory into fixed-size frames and logical memory into same-sized pages. Eliminates external fragmentation. No logical meaning to pages — the programmer is unaware.\n\nSegmentation: divides logical memory into variable-sized segments (code, data, stack, heap) that correspond to the programmer's logical view. Can cause external fragmentation (like compaction needed, or best-fit placement).\n\nHybrid approach (segmented paging): segments are divided into pages."
+
+[[templates]]
+id = "page-replacement-fifo"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Reference string: 1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5. Use FIFO page replacement with 3 frames. Count the page faults."
+answer = "Initial: [][][] — 3 free frames\n1 → [1][][] fault\n2 → [1][2][] fault\n3 → [1][2][3] fault\n4 → [4][2][3] fault (evict 1, oldest)\n1 → [4][1][3] fault (evict 2)\n2 → [4][1][2] fault (evict 3)\n5 → [5][1][2] fault (evict 4)\n1 → [5][1][2] hit\n2 → [5][1][2] hit\n3 → [3][1][2] fault (evict 5)\n4 → [3][4][2] fault (evict 1)\n5 → [3][4][5] fault (evict 2)\n\nTotal page faults: 9"
+
+[templates.variables]
+refs_3 = ["1,2,3,4,1,2,5,1,2,3,4,5"]
+answer_3 = ["9 page faults (Belady's anomaly possible with FIFO)"]
+
+[[templates]]
+id = "page-replacement-lru"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Same reference string: 1,2,3,4,1,2,5,1,2,3,4,5. Use LRU with 3 frames. Count faults."
+answer = "1→[1][] fault, 2→[1][2] fault, 3→[1][2][3] fault, 4→[4][2][3] fault (LRU=1), 1→[4][1][3] fault (LRU=2), 2→[4][1][2] fault (LRU=3), 5→[5][1][2] fault (LRU=4), 1→[5][1][2] hit, 2→[5][1][2] hit, 3→[5][3][2] fault (LRU=1? Actually check: after 1,2 hit, the frames are [5][1][2]. LRU order (oldest → newest): 5, 1, 2. So for 3, 5 is LRU. Evict 5→[3][1][2] fault), 4→[3][4][2] fault (LRU=1? After 3, order is 1,2,3. Evict 1→[3][4][2]), 5→[3][4][5] fault (LRU=2, evict 2→[3][4][5]).\nTotal faults: 10? Let me recount:\nFaults: 1,2,3,4,1,2,5,_(1hit)_,_(2hit)_,3,4,5 = 10 faults.\n\nLRU has 10 faults vs FIFO's 9 here — LRU does not always produce fewer faults (it has optimal stack property but Belady proved LRU ≥ OPT, not ≥ all)."
+
+[templates.variables]
+data = ["1,2,3,4,1,2,5,1,2,3,4,5 with 3 frames, LRU"]
+answer_note = ["10 page faults. LRU > FIFO in this specific case (9 vs 10) due to reference pattern."]
+
+# ── File Systems ────────────────────────────────────────────────────────────
+
+[[templates]]
+id = "inode-structure"
+type = "standard"
+knowledge_type = "declarative"
+question = "What information does a Unix inode contain?"
+answer = "An inode stores metadata about a file: file type, permissions (rwx), number of hard links, owner UID/GID, file size, timestamps (access/modification/change), and pointers to data blocks (direct, single indirect, double indirect, triple indirect pointers). It does NOT store the file name."
+
+[[templates]]
+id = "file-allocation-strategies"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Compare contiguous, linked, and indexed file allocation. Which is best for sequential access? For random access? For file growth?"
+answer = "Contiguous: fast sequential and random (direct block calculation) but suffers external fragmentation and requires max-size declaration. Best for read-only/known-size files.\n\nLinked: each block points to the next. No fragmentation, grows easily, but terrible random access (O(n) seek) and single point of failure (broken link). Best for sequential-only access.\n\nIndexed: a block (inode/index block) holds pointers to all data blocks. Good random access (direct index lookup), supports growth, small overhead. Best overall for general use. FAT uses linked; ext4 uses indexed (extents)."
+
+# ── I/O Systems ─────────────────────────────────────────────────────────────
+
+[[templates]]
+id = "io-methods"
+type = "standard"
+knowledge_type = "declarative"
+question = "What are the three methods for performing I/O, and when is each used?"
+answer = "1. Polling (Programmed I/O): CPU repeatedly checks device status register. Simple but wastes CPU cycles. Used for very fast/simple devices.\n\n2. Interrupt-Driven I/O: device sends an interrupt when ready. CPU is free during I/O. Efficient for slow devices (keyboards, mice). Overhead of interrupt handling.\n\n3. DMA (Direct Memory Access): DMA controller transfers data directly between device and memory, interrupts CPU only when done. Used for bulk transfers (disk, network, display). Most efficient for large transfers."
+
+[[templates]]
+id = "dma-cycle-stealing"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "What is cycle stealing in the context of DMA?"
+answer = "Cycle stealing occurs when the DMA controller transfers one word of data at a time, then returns the bus to the CPU. The DMA controller 'steals' individual memory bus cycles from the CPU rather than performing a burst transfer. This allows the CPU to interleave its own memory accesses between DMA transfers, reducing CPU slowdown at the cost of slower data transfer rates compared to burst mode."

@@ -1,0 +1,14 @@
+```json
+[
+  {
+    "type": "standard",
+    "question": "What is a process?",
+    "answer": "A process is an instance of a running program, including its address space, registers, open file descriptors, and execution state."
+  },
+  {
+    "type": "code-trace",
+    "question": "{{code}}\nint main() {\n    pid_t pid = fork();\n    if (pid == 0) {\n        printf(\"child\");\n    } else {\n        printf(\"parent\");\n    }\n    return 0;\n}\n{{endcode}}\nWhat does this program output?",
+    "answer": "Both 'child' and 'parent' are printed. fork() creates a child process that is a copy of the parent. The child enters the pid==0 branch, the parent enters the else branch. The order depends on the scheduler."
+  }
+]
+```

@@ -1,0 +1,457 @@
+name = "Software Engineering"
+prerequisites = ["SC2002"]
+
+# ── SDLC Models ─────────────────────────────────────────────────────────────────
+# Declarative: comparing process model characteristics is knowledge of facts.
+
+[[templates]]
+id = "sdlc-models"
+type = "standard"
+knowledge_type = "declarative"
+question = "Compare the Waterfall, Agile (Scrum), and Spiral models. What are the key characteristics and appropriate use cases for each?"
+answer = """Waterfall: linear sequential phases (requirements → design → implementation → verification → maintenance). Rigid, no backtracking. Best for well-understood projects with stable requirements (e.g., safety-critical systems).
+
+Agile/Scrum: iterative with 1-4 week sprints, adaptive planning, continuous feedback, working software as progress metric. Best for projects with evolving requirements, small-to-medium teams.
+
+Spiral: risk-driven, iterative refinement through quadrants (determine objectives → identify/resolve risks → develop/verify → plan next iteration). Each loop produces an increment. Best for large, high-risk, or experimental projects where risk analysis is critical."""
+
+# ── Requirements Engineering ────────────────────────────────────────────────────
+# Declarative: the distinction between functional and non-functional is definitional.
+
+[[templates]]
+id = "requirements-types"
+type = "standard"
+knowledge_type = "declarative"
+question = "What is the difference between functional and non-functional requirements? Give two examples of each for an e-commerce checkout system."
+answer = """Functional requirements describe WHAT the system must do — specific behaviours or functions:
+- "The system shall calculate tax based on the customer's shipping address."
+- "The system shall send a confirmation email after payment is processed."
+
+Non-functional requirements describe HOW the system performs — constraints and quality attributes:
+- "The checkout page shall load within 2 seconds under 1000 concurrent users." (performance)
+- "All payment data shall be encrypted using TLS 1.3." (security)
+
+Non-functional requirements are often cross-cutting and harder to verify, but are equally critical for system quality."""
+
+# ── UML Class Diagram: Relationship Identification ─────────────────────────────
+# Procedural: interpreting a description and mapping to the correct UML notation.
+
+[[templates]]
+id = "uml-class-relationship"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "A University has many Departments. Each Department has exactly one HeadOfDepartment, who is a Faculty member. A Faculty member may belong to zero or one Departments. A Course is taught by exactly one Faculty member, and a Faculty member may teach many Courses. Courses are composed of multiple Lectures and Tutorials, which cannot exist independently.\n\nIdentify the UML relationship types between: (a) University → Department, (b) Department → HeadOfDepartment, (c) Faculty → Course, (d) Course → Lecture."
+answer = """(a) University ---<> Department: Association with aggregation (hollow diamond). A University contains Departments, but Departments can exist independently (the whole-part relationship is weak — University deleted does not necessarily destroy Departments in all interpretations). More precisely, a simple one-to-many association from University to Department is also defensible.
+
+(b) Department ---|> HeadOfDepartment: This is NOT an inheritance relationship. HeadOfDepartment is a role played by a Faculty member — it's a one-to-one association, specifically a qualified association where Department has a "head" attribute of type Faculty.
+
+(c) Faculty ---> Course: One-to-many association (1 Faculty teaches 0..* Courses). Directed if the navigation is one-way (Faculty knows its Courses); undirected if bidirectional.
+
+(d) Course ---><> Lecture: Composition (filled diamond). Lectures are parts of a Course and cannot exist without it — destroying the Course destroys its Lectures."""
+
+# ── UML Sequence Diagram Trace ─────────────────────────────────────────────────
+# Procedural: trace the messages in a typical ATM withdrawal sequence.
+
+[[templates]]
+id = "uml-sequence-trace"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Trace the sequence of messages in a UML sequence diagram for an ATM withdrawal use case involving the actors/objects: Customer, ATM, BankSession, and Database. The Customer inserts a card and withdraws $100. Include the return messages."
+answer = """1. Customer → ATM: insertCard(cardNumber)
+2. ATM → BankSession: createSession(cardNumber)
+3. BankSession → BankSession: validatePIN()                 [self-call — prompts for PIN]
+4. ATM → Customer: requestPIN()
+5. Customer → ATM: enterPIN(pin)
+6. ATM → BankSession: verifyPIN(pin)
+7. BankSession → Database: lookupAccount(cardNumber)
+8. Database → BankSession: return account
+9. BankSession → BankSession: checkPIN(account, pin)         [self-call]
+10. BankSession → ATM: PIN_OK
+11. ATM → Customer: showMenu()
+12. Customer → ATM: selectWithdrawal(100)
+13. ATM → BankSession: requestWithdrawal(100)
+14. BankSession → Database: checkBalance(account)
+15. Database → BankSession: return balance
+16. BankSession → BankSession: verifySufficientFunds(100)    [self-call]
+17. BankSession → Database: debitAccount(account, 100)
+18. Database → BankSession: return success
+19. BankSession → ATM: dispenseCash(100)
+20. ATM → Customer: dispenseCash(100)
+21. Customer → ATM: takeCash()
+22. ATM → BankSession: endSession()
+23. BankSession → ATM: sessionClosed
+24. ATM → Customer: printReceipt()
+
+Alternate/error path: if step 16 shows insufficient funds, the flow sends insufficientFunds() back to ATM → Customer instead of steps 17-24."""
+
+# ── Singleton Pattern ───────────────────────────────────────────────────────────
+# Explain-why: requires reasoning about design trade-offs.
+
+[[templates]]
+id = "singleton-pattern"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "When is the Singleton design pattern appropriate, and what are its criticisms? Would you use it for a database connection pool?"
+answer = """Singleton ensures a class has only one instance and provides a global point of access. Appropriate when:
+- Exactly one instance must coordinate actions (e.g., a print spooler, window manager).
+- Lazy initialization is needed (instance created on first use).
+
+Criticisms:
+1. **Global state**: introduces hidden dependencies; any code can access the singleton, making testing difficult (hard to mock/reset between tests).
+2. **Violates Single Responsibility Principle**: the class manages both its own business logic and its lifecycle.
+3. **Concurrency issues**: double-checked locking and synchronization overhead.
+4. **Tight coupling**: consumers depend on the concrete singleton class, not an abstraction.
+
+For a database connection pool: NO. Connection pools should be configurable, testable with mocks, and potentially have multiple pools (different databases). Better to use dependency injection — inject a ConnectionPool interface that is instantiated once at composition root, but is not a singleton itself. The "singleton-ness" should be a wiring concern, not baked into the class."""
+
+# ── Factory Method Pattern Identification ──────────────────────────────────────
+# Procedural: given pseudocode, identify the design pattern.
+
+[[templates]]
+id = "factory-pattern-identify"
+type = "code-trace"
+knowledge_type = "procedural"
+question = """Identify the design pattern in this code and explain why it is used:
+
+```python
+class DocumentRenderer:
+    def render(self, document):
+        renderer = self._create_renderer(document)
+        renderer.render_header(document)
+        renderer.render_body(document)
+        renderer.render_footer(document)
+
+class PDFRenderer(DocumentRenderer):
+    def _create_renderer(self, document):
+        return PDFRenderEngine()
+
+class HTMLRenderer(DocumentRenderer):
+    def _create_renderer(self, document):
+        return HTMLRenderEngine()
+```"""
+
+answer = """This is the **Factory Method** pattern. The `DocumentRenderer` (creator) defines the skeleton algorithm in `render()` but delegates the object creation to the subclass method `_create_renderer()` (the factory method). Subclasses override the factory method to create specific product objects.
+
+Why used:
+1. **Dependency Inversion**: the high-level `render()` logic does not depend on concrete render engines — it depends on an abstraction (the return type of `_create_renderer()`).
+2. **Open/Closed**: adding a new output format (e.g., `MarkdownRenderer`) requires adding a new subclass — no existing code is modified.
+3. **Template Method synergy**: the factory method feeds into a Template Method pattern (`render()` is the template), separating construction from the algorithm.
+
+Contrast with Abstract Factory: Factory Method is a single method for one product family; Abstract Factory is an interface for creating families of related products."""
+
+# ── Testing Levels ──────────────────────────────────────────────────────────────
+# Declarative: the hierarchy and scope of testing levels.
+
+[[templates]]
+id = "testing-levels"
+type = "standard"
+knowledge_type = "declarative"
+question = "Describe the four levels of testing in software engineering (from narrowest to broadest scope). What is tested at each level and who typically performs it?"
+answer = """1. **Unit Testing**: tests individual components/functions/methods in isolation. Usually automated (JUnit, pytest). Performed by developers. Catches logic errors, edge cases, and off-by-one bugs. Scope: a single unit.
+
+2. **Integration Testing**: tests interactions between integrated units/modules. Checks that interfaces, data flow, and API contracts work correctly. Can be top-down, bottom-up, or sandwich. Performed by developers. Scope: interfaces between units.
+
+3. **System Testing**: tests the complete, integrated system against requirements. Includes functional testing (does it do what the spec says?) and non-functional testing (performance, security, usability). Performed by QA/test team. Scope: the entire application.
+
+4. **Acceptance Testing**: validates that the system meets business needs and user requirements. Includes User Acceptance Testing (UAT) by end users, alpha/beta testing, and contract acceptance. Performed by customers/end users. Scope: business requirements.
+
+Each level builds on the previous — a failure at integration may mean a unit test was missing; a failure at system may mean an integration test was insufficient."""
+
+# ── Equivalence Partitioning & Boundary Value Analysis ─────────────────────────
+# Procedural: apply testing techniques to a concrete function.
+
+[[templates]]
+id = "equivalence-partitioning"
+type = "code-trace"
+knowledge_type = "procedural"
+question = """Given this function:
+
+```python
+def calculate_discount(age: int, is_member: bool) -> float:
+    \"\"\"
+    Returns discount percentage (0.0 - 0.40).
+    age must be 0-120, is_member indicates membership.
+    - Members get 10% base discount.
+    - Age 0-17: additional 5% (members) or 0% (non-members).
+    - Age 18-59: no additional.
+    - Age 60-120: additional 15% (members) or 10% (non-members).
+    Max total discount is capped at 40%.
+    \"\"\"
+```
+
+Apply equivalence partitioning to identify test cases for the `age` parameter. Then apply boundary value analysis to refine them."""
+answer = """**Equivalence Partitions for age:**
+
+| Partition        | Valid? | Expected Behaviour                        |
+|------------------|--------|-------------------------------------------|
+| 0 — 17           | Valid  | Child pricing applies                     |
+| 18 — 59          | Valid  | Adult pricing, no age bonus               |
+| 60 — 120         | Valid  | Senior pricing applies                    |
+| age < 0          | Invalid| Should raise error or return 0            |
+| age > 120        | Invalid| Should raise error or return 0            |
+| age is NaN/null  | Invalid| Type check / error                        |
+
+**Boundary Value Analysis** — test at boundaries of valid partitions:
+- Partition 0-17: test 0, 17 (boundaries), and optionally 1, 16
+- Partition 18-59: test 18, 59 (boundaries)
+- Partition 60-120: test 60, 120 (boundaries)
+- Invalid lower: test -1
+- Invalid upper: test 121
+
+**Minimal BVA test set for age**: 0, 1, 17, 18, 59, 60, 120, -1, 121
+**Plus full cross-product with is_member** (True/False) for each age boundary that changes behaviour (0, 17, 18, 59, 60, 120).
+
+Example expected outcomes for key cases:
+- age=25, is_member=True → 10% (member, no age bonus, not capped)
+- age=70, is_member=True → 25% (10% member + 15% senior, not capped)
+- age=80, is_member=True → 40% (10% member + 15% senior = 25%... wait, member=10, +15=25, but we need to think if any scenario hits 40% cap. Let's see: member(10%) + senior(15%) = 25%. Actually the max is 40% — perhaps a special scenario. The cap matters when cumulative discounts would exceed 40%.)"""
+
+# ── CI/CD Pipeline ──────────────────────────────────────────────────────────────
+# Declarative: understanding CI/CD concepts and stages.
+
+[[templates]]
+id = "cicd-pipeline-stages"
+type = "standard"
+knowledge_type = "declarative"
+question = "What are the typical stages of a CI/CD pipeline, and what happens at each stage? What is the difference between Continuous Delivery and Continuous Deployment?"
+answer = """**CI/CD Pipeline Stages:**
+
+1. **Source / Commit**: developer pushes code to version control (GitHub, GitLab). Triggers the pipeline.
+2. **Build**: compile source code, resolve dependencies, produce artifacts (e.g., Docker image, JAR file).
+3. **Static Analysis**: lint, type-check, security scan (SAST), code quality checks (SonarQube).
+4. **Test**: run unit tests → integration tests → system tests in sequence or parallel.
+5. **Package**: create deployable artifact (Docker image, RPM, ZIP) with version tag.
+6. **Deploy to Staging**: deploy artifact to a staging environment mimicking production.
+7. **Acceptance Tests**: run end-to-end tests, smoke tests, performance benchmarks against staging.
+8. **Deploy to Production**: promote artifact to production environment.
+
+**Continuous Delivery vs Continuous Deployment:**
+- **Continuous Delivery**: every change that passes all pipeline stages is ready for deployment to production, but the actual deployment requires a manual approval gate. The release decision is a business choice, not a technical one.
+- **Continuous Deployment**: every change that passes all stages is automatically deployed to production with no manual intervention. Requires high confidence in automated testing and monitoring.
+
+The key difference: manual approval gate before production. Continuous Delivery is safer for most enterprise contexts; Continuous Deployment is common in SaaS/startup environments."""
+
+# ── Version Control: Merge vs Rebase ───────────────────────────────────────────
+# Explain-why: reasoning about git workflow trade-offs.
+
+[[templates]]
+id = "git-merge-vs-rebase"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "What is the difference between `git merge` and `git rebase`? When would you choose one over the other, and what are the risks of rebasing shared branches?"
+answer = """**git merge** creates a merge commit that ties two branch histories together, preserving the exact timeline of when commits happened. The resulting history shows the true branching structure.
+
+**git rebase** rewrites commit history by replaying commits from the current branch on top of the target branch, creating linear history. Each replayed commit gets a new SHA and timestamp.
+
+**When to use Merge:**
+- For public/shared branches (main, develop, release) — never rebase shared branches.
+- When you want to preserve the exact chronology and context of parallel development.
+- When the branch has been reviewed and has historical value as-is.
+- Safer default for teams unfamiliar with rebase.
+
+**When to use Rebase:**
+- For local/feature branches before merging — keeps a clean, linear history.
+- To incorporate upstream changes into a long-running feature branch (rebase, then force-push to your own branch only).
+- When you want to avoid "useless" merge commits that add noise.
+
+**The Golden Rule of Rebasing:** Never rebase commits that have been pushed to a shared branch (unless you know every collaborator has already pulled and you coordinate the force-push).
+
+**Risks of rebasing shared branches:**
+1. Divergent history — collaborators' local repos have different commit SHAs.
+2. Lost work — if a collaborator has additional commits on top of the rebased branch, those may be duplicated or lost.
+3. Trust erosion — rewriting shared history breaks traceability for code review and audit trails."""
+
+# ── Code Review: Anti-Pattern Detection ────────────────────────────────────────
+# Debug-find: identify the bug/anti-pattern in code.
+
+[[templates]]
+id = "code-review-anti-pattern"
+type = "debug-find"
+knowledge_type = "procedural"
+question = """Find all the issues in this Python code snippet during a code review:
+
+```python
+import os, sys, json
+
+config = None
+
+def load_config():
+    global config
+    if os.path.exists("config.json"):
+        with open("config.json") as f:
+            config = json.load(f)
+    return config
+
+def process_data(data):
+    if config is None:
+        load_config()
+    result = []
+    for i in range(len(data)):
+        item = data[i]
+        if item["type"] == config["types"]["active"]:
+            item["processed"] = True
+            item["timestamp"] = time.time()
+        result.append(item)
+    return result
+
+def save_results(data):
+    with open("results.json", "w") as f:
+        json.dump(data, f)
+    print("Results saved successfully!")
+
+class UserService:
+    def get_user(self, user_id):
+        return db.query(f"SELECT * FROM users WHERE id = {user_id}")
+```"""
+answer = """**Issues found:**
+
+1. **SQL Injection** (Critical/Security): `f"SELECT * FROM users WHERE id = {user_id}"` — directly interpolates user input into SQL. Use parameterised queries (`WHERE id = ?`, `(user_id,)`) or an ORM.
+
+2. **Missing import**: `time.time()` in `process_data` but `time` is not imported.
+
+3. **Mutable global state**: `config` is a module-level global mutated by `load_config()`. This makes testing impossible (state leaks between tests, can't parallelise). Use dependency injection or a config class.
+
+4. **No error handling**: `json.load(f)` can raise `json.JSONDecodeError`; `open("config.json")` can raise `FileNotFoundError` if the file path is wrong or missing (even after the `exists()` check — TOCTOU race condition). `db.query(...)` can fail — the UserService method has no error handling.
+
+5. **TOCTOU race**: `os.path.exists("config.json")` then `open("config.json")` — the file could be deleted/moved between the check and the open. Better to try-except the open.
+
+6. **Hardcoded paths**: `"config.json"`, `"results.json"` should be configurable via environment variables, CLI args, or a config object.
+
+7. **Mixed responsibilities**: `save_results()` mixes data persistence with user-facing output (`print()`). A repository/service should not print to stdout.
+
+8. **Bare `except` / no exception handling**: if `process_data` hits an error mid-loop, the function silently continues with partial results or crashes. At minimum, wrap in try/except with logging.
+
+9. **Implicit global dependency**: `process_data` silently depends on `config` being loaded. The function signature hides its dependency. Better: `process_data(data, config)`.
+
+10. **Mutable dict mutation**: `item["processed"] = True` modifies the original dict in `data` (side effect). Callers get mutated input. Consider creating a new dict or using `dataclasses.replace()` for immutability."""
+
+# ── SOLID: Dependency Inversion ────────────────────────────────────────────────
+# Explain-why: reasoning about design principles.
+
+[[templates]]
+id = "dependency-inversion"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "Explain the Dependency Inversion Principle (DIP). Why does it matter for maintainability, and what code smell indicates it is being violated?"
+answer = """**Dependency Inversion Principle**: (A) High-level modules should not depend on low-level modules. Both should depend on abstractions. (B) Abstractions should not depend on details; details should depend on abstractions.
+
+In other words, the traditional "top-down" dependency structure is inverted — instead of your business logic importing concrete database drivers, the business logic defines an interface (port), and the infrastructure layer implements it (adapter).
+
+**Why it matters:**
+1. **Testability**: business logic can be unit-tested with mock implementations of the interface — no database, no network, no file system needed.
+2. **Swap implementations**: switching from PostgreSQL to MongoDB means writing a new adapter — zero changes to business logic.
+3. **Parallel development**: the business logic team and the infrastructure team can work independently once the interface is agreed.
+4. **Reduced coupling**: changes in low-level details (e.g., changing a SQL query) do not ripple up to high-level modules.
+
+**Code smell indicating DIP violation:**
+- `new` keyword (or constructor call) inside business logic for a concrete infrastructure class: `PaymentProcessor` creating `new MySQLDatabase()` directly.
+- Static method calls on concrete infrastructure classes: `Database.connect()`, `Logger.write()`.
+- Import chains where business logic directly imports ORM models, HTTP clients, or file-system utilities.
+- "Fragile base class" syndrome — a change in a low-level module breaks high-level modules.
+
+**Example violation:**
+```python
+class OrderService:
+    def __init__(self):
+        self.db = MySQLDatabase()  # BAD: depends on concrete class
+
+# Fixed:
+class OrderService:
+    def __init__(self, db: OrderRepository):  # depends on abstraction
+        self.db = db
+```"""
+
+
+# ── Code Readability & Maintainability ─────────────────────────────────────────
+# Debug-find: identify maintainability issues.
+
+[[templates]]
+id = "code-maintainability-smells"
+type = "debug-find"
+knowledge_type = "procedural"
+question = """Review this code. What maintainability issues does it have, and how would you refactor it?
+
+```python
+def process(x, y, z, a, b, c):
+    if x == 1:
+        if y > 10:
+            z = z * 2
+        else:
+            z = z * 3
+    elif x == 2:
+        if y > 10:
+            z = z * 4
+        else:
+            z = z * 5
+    elif x == 3 and a == True and b == "yes" and c is not None:
+        for i in range(len(c)):
+            z = z + c[i]
+    result = z + 100
+    with open("/tmp/output.txt", "w") as f:
+        f.write(str(result))
+    return result
+```"""
+answer = """**Maintainability Issues:**
+
+1. **Magic numbers**: `1`, `2`, `3`, `10`, `100`, `2`, `3`, `4`, `5` — no named constants or enums. What does `x == 1` mean? Business rules are buried.
+
+2. **Deep nested conditionals**: `if-elif-elif` with nested `if-else` — the cyclomatic complexity is 8+ for a single function. Hard to read, test, and modify. Extract each branch into named strategy functions.
+
+3. **Boolean flag in parameter**: `a == True` should be just `if a`. Also, `a`, `b`, `c` as parameter names reveal nothing about their meaning.
+
+4. **Too many parameters**: 6 positional parameters. Beyond 3-4 parameters, readability plummets. Group related params into a dataclass or config object.
+
+5. **Hardcoded side effect**: `open("/tmp/output.txt", "w")` — hardcoded path, no error handling, no resource cleanup issue (the `with` block is correct here), but the side effect is hidden inside a function supposedly named `process`. Violates Command-Query Separation — it computes AND writes.
+
+6. **Side-effect mutation of parameter**: `z = z * 2` mutates the input parameter `z`. Not technically wrong in Python (it rebinds the local name), but the intent to accumulate into `z` is unclear.
+
+7. **No error handling**: no try/except for file write, no handling for `c[i]` index error if `c` is empty.
+
+8. **Type ambiguity**: what are the types of `x`, `y`, `z`, `a`, `b`, `c`? Not documented, no type hints. `z` starts as a number but `c[i]` is added to it — if `c` is a list of strings, `z + c[i]` would concatenate or crash.
+
+9. **Unclear function name**: `process` tells nothing about what this does. It seems to calculate a discount or a multiplier — name it accordingly (e.g., `calculate_adjusted_score`).
+
+**Refactored Version:**
+
+```python
+from dataclasses import dataclass
+
+class ProcessingType(IntEnum):
+    STANDARD = 1
+    PREMIUM = 2
+    COMPLEX = 3
+
+@dataclass
+class ProcessingInput:
+    processing_type: ProcessingType
+    score: int
+    threshold: int
+    apply_bonus: bool
+    qualifier: str
+    values: list[int]
+
+class CalculationEngine:
+    MULTIPLIERS = {
+        (ProcessingType.STANDARD, True): 2,
+        (ProcessingType.STANDARD, False): 3,
+        (ProcessingType.PREMIUM, True): 4,
+        (ProcessingType.PREMIUM, False): 5,
+    }
+
+    def compute_score(self, inp: ProcessingInput) -> int:
+        base = self._apply_multiplier(inp)
+        total = base + 100 if inp.processing_type != ProcessingType.COMPLEX else base
+        return total
+
+    def _apply_multiplier(self, inp: ProcessingInput) -> int:
+        if inp.processing_type == ProcessingType.COMPLEX:
+            return inp.score + sum(inp.values) if self._is_complex_eligible(inp) else inp.score
+        key = (inp.processing_type, inp.score > inp.threshold)
+        return inp.score * self.MULTIPLIERS.get(key, 1)
+
+    @staticmethod
+    def _is_complex_eligible(inp: ProcessingInput) -> bool:
+        return inp.apply_bonus and inp.qualifier == "yes" and inp.values is not None
+
+# Side effect (file writing) is separated into its own service/function.
+```"""

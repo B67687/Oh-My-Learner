@@ -1,0 +1,88 @@
+name = "Science & Technology for Humanity"
+prerequisites = []
+
+# ── Scientific Revolutions ─────────────────────────────────────────────────────
+# Declarative: historical facts and paradigm shifts.
+
+[[templates]]
+id = "major-scientific-revolutions"
+type = "standard"
+knowledge_type = "declarative"
+question = "What are the five major scientific revolutions in Western history, and what paradigm shift did each introduce?"
+answer = "1. Copernican Revolution (16th c.): Earth is not the center of the universe — heliocentric model replaces geocentric.\n2. Newtonian Revolution (17th c.): Universal laws of motion and gravity explain celestial and terrestrial phenomena under one framework.\n3. Darwinian Revolution (19th c.): Species evolve through natural selection — humans are part of nature, not separate from it.\n4. Relativity Revolution (early 20th c.): Einstein's special and general relativity — space and time are relative, gravity is curved spacetime.\n5. Quantum Revolution (early 20th c.): Heisenberg, Schrödinger, Bohr — at the smallest scales, nature is probabilistic, not deterministic, and observation affects outcome."
+
+[[templates]]
+id = "copernican-revolution"
+type = "standard"
+knowledge_type = "declarative"
+question = "What was the Copernican Revolution, and why was it significant for the relationship between science and society?"
+answer = "The Copernican Revolution was the paradigm shift from a geocentric (Earth-centered) universe to a heliocentric (Sun-centered) model. Nicolaus Copernicus proposed the heliocentric model in *De Revolutionibus* (1543), but it was Galileo's telescopic observations (moons of Jupiter, phases of Venus) and Kepler's elliptical orbits that provided empirical evidence. The revolution was significant because: (1) it displaced humanity from the center of creation, challenging Church doctrine; (2) Galileo's trial (1633) became the archetypal conflict between science and religious authority; (3) it established that empirical observation could overturn long-held authority-based beliefs, laying the groundwork for the Scientific Revolution."
+
+[[templates]]
+id = "scientific-method-innovation"
+type = "standard"
+knowledge_type = "declarative"
+question = "What is the hypothetico-deductive method, and how did Bacon and Descartes contribute to its development?"
+answer = "The hypothetico-deductive method is a scientific approach where a hypothesis is formulated and then tested through empirical observation and experimentation. Francis Bacon (1561–1626) advocated inductivism — gathering facts through observation and drawing general principles from them, emphasizing systematic experimentation (Novum Organum). René Descartes (1596–1650) emphasized deductive reasoning from first principles (Cogito ergo sum) and mathematical analysis, requiring clear and distinct ideas. Their combined contributions form the foundation of modern scientific methodology: observation → hypothesis → prediction → experiment → validation/rejection."
+
+# ── Technology & Ethics ───────────────────────────────────────────────────────
+
+[[templates]]
+id = "technology-ethics-frameworks"
+type = "standard"
+knowledge_type = "declarative"
+question = "What are the three major normative ethical frameworks, and how do they apply to technology ethics?"
+answer = "1. Utilitarianism (consequentialism): an action is right if it maximizes overall happiness/utility. Applied to tech: evaluating whether an AI system produces the greatest good for the greatest number (e.g., self-driving cars minimizing total harm). Criticized for potentially justifying harm to minorities for majority benefit.\n\n2. Deontology (duty-based ethics): certain actions are inherently right or wrong regardless of consequences (Kant's Categorical Imperative). Applied to tech: treating users as ends, not means — e.g., informed consent for data collection, not deceiving users with dark patterns.\n\n3. Virtue Ethics: focuses on the character of the moral agent (Aristotle). Applied to tech: what virtues should engineers cultivate? Honesty, transparency, accountability. Evaluates the ethos of organizations (Google's 'Don't Be Evil')."
+
+[[templates]]
+id = "trolley-problem-autonomy"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "Why does the trolley problem matter for autonomous vehicle programming, and what are its limitations as an ethical framework?"
+answer = "The trolley problem (Foot 1967, Thomson 1976) — whether to sacrifice one person to save five — matters because autonomous vehicles may face unavoidable crash scenarios requiring algorithmic life-and-death decisions. It forces engineers to make explicit moral choices that human drivers make implicitly or instinctively. However, its limitations include: (1) it is an unrealistic edge case — real AV safety is about preventing crashes through sensor fusion and defensive driving, not choosing victims; (2) it assumes perfect knowledge of outcomes, which is never available; (3) focusing on trolley scenarios distracts from more common ethical issues like privacy, bias, labor displacement, and environmental impact of AV deployment."
+
+[[templates]]
+id = "ai-ethics-bias"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "Why is algorithmic bias an ethical problem in AI systems, and what are the main sources of such bias?"
+answer = "Algorithmic bias is an ethical problem because it can produce systematically unfair outcomes that harm marginalized groups, often at scale and without transparency. Main sources of bias:\n\n1. Training data bias: historical discrimination encoded in data (e.g., biased hiring decisions learned from past human decisions; COMPAS recidivism algorithm showing racial disparities).\n2. Sampling bias: data that does not represent the target population (e.g., facial recognition trained mostly on light-skinned faces performs poorly on darker skin).\n3. Label bias: subjective or inconsistent human labeling (e.g., what counts as 'toxicity' in content moderation).\n4. Measurement bias: choosing the wrong proxy for the target variable (e.g., using zip code as a proxy for creditworthiness perpetuates socioeconomic segregation).\n\nThe ethical concern is amplified because AI systems obscure bias behind a veneer of mathematical objectivity and operate at a scale that magnifies harm."
+
+# ── Privacy & Surveillance ────────────────────────────────────────────────────
+
+[[templates]]
+id = "privacy-surveillance-distinction"
+type = "standard"
+knowledge_type = "declarative"
+question = "What is the distinction between privacy and surveillance, and what are the key arguments in the privacy versus security debate?"
+answer = "Privacy is the right of individuals to control access to their personal information and to be free from unauthorized observation. Surveillance is the systematic monitoring of individuals or groups, often by governments or corporations. Key debate positions:\n\n1. Security argument: surveillance is necessary to prevent terrorism, crime, and national security threats — privacy must be traded for safety (the 'nothing to hide' argument).\n2. Privacy argument: mass surveillance chills free expression, enables authoritarian abuse, and violates fundamental rights — security without privacy is tyranny.\n3. Middle ground: targeted surveillance with judicial oversight (warrants, probable cause) can balance both concerns; it is mass, indiscriminate surveillance (PRISM, mass metadata collection) that is problematic.\n\nDaniel Solove argues the 'nothing to hide' argument fails because privacy is about structural power balances, not individual secrets."
+
+[[templates]]
+id = "digital-panopticon"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "What is the Panopticon, and why is it used as a metaphor for modern digital surveillance?"
+answer = "The Panopticon is a prison design by Jeremy Bentham (1791) where a central watchtower can observe all inmates, but inmates cannot see whether they are being watched at any given moment — creating constant self-discipline because they might be observed at any time. Michel Foucault used it as a metaphor for disciplinary power in modern societies.\n\nIt applies to digital surveillance because: (1) data collection is pervasive but invisible — users cannot know when or how they are being monitored; (2) awareness of surveillance causes self-censorship and conformity (chilling effect); (3) the architecture of digital platforms (centralized servers, data aggregation, algorithmic analysis) mirrors the Panopticon's asymmetry of visibility. However, the digital Panopticon differs: it is decentralized (multiple watchers: corporations, governments, hackers), and data persists indefinitely rather than being observed in real-time."
+
+# ── Technology Policy ─────────────────────────────────────────────────────────
+
+[[templates]]
+id = "technology-policy-debates"
+type = "standard"
+knowledge_type = "declarative"
+question = "What are the three major contemporary technology policy debates, and what are the competing positions in each?"
+answer = "1. Net Neutrality: the principle that Internet service providers should treat all data equally without throttling, blocking, or paid prioritization. Pro: preserves free competition, prevents ISPs from gatekeeping content. Con (critics): regulation reduces investment in broadband infrastructure; some prioritization (emergency services, latency-sensitive apps) is beneficial.\n\n2. Content Moderation & Section 230: platform liability for user-generated content. Pro free speech: platforms should host all legal speech with minimal moderation. Pro responsibility: platforms should actively remove harmful content (misinformation, hate speech, harassment). Section 230 of the Communications Decency Act shields US platforms from liability for user content — debated whether this protection should be narrowed.\n\n3. Algorithmic Regulation & AI Governance: should governments regulate AI systems? Pro: AI poses systemic risks (bias, safety, labor displacement) that markets cannot self-correct. Con: over-regulation stifles innovation; existing tort law covers harm. The EU AI Act (2024) takes a risk-based approach; the US favors voluntary frameworks."
+
+[[templates]]
+id = "precautionary-principle"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "What is the precautionary principle, and why is it controversial when applied to emerging technologies?"
+answer = "The precautionary principle states that if an action or technology has potential for serious or irreversible harm, the burden of proof falls on those proposing the action — even if the causal link is not fully established scientifically. Strong version: 'no innovation without certainty of safety.' Weak version: 'proportional preventive measures should be taken when risks are plausible but uncertain.'\n\nIt is controversial because: (1) it can stifle beneficial innovation — if every novel technology must be proven safe, many potentially valuable advances may never be deployed (e.g., GMOs, CRISPR, geoengineering); (2) the principle is vague and inconsistently applied; (3) precaution itself has opportunity costs — delaying a technology may cause harm from the status quo (e.g., delaying vaccines causes disease); (4) critics argue it is impossible to prove a negative (that something is 'safe' — every activity carries some risk)."
+
+[[templates]]
+id = "environmental-technology-sustainability"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "Why is the Jevons Paradox relevant to environmental technology policy?"
+answer = "The Jevons Paradox (1865), also called the rebound effect, states that as technological efficiency increases, the rate of consumption of that resource tends to increase rather than decrease. William Stanley Jevons observed that more efficient coal engines led to more coal consumption, not less, because efficiency made coal-powered industries cheaper and more widespread.\n\nThis is relevant to environmental technology policy because: (1) it cautions against techno-solutionism — believing efficiency improvements alone will solve environmental problems; (2) it implies that efficiency gains must be paired with regulatory measures (carbon taxes, caps, quotas) to prevent rebound; (3) modern examples: fuel-efficient cars lead to more miles driven; LED lighting (90% more efficient) has not reduced total energy use for lighting because lights are on more and in more places; (4) it demonstrates the importance of considering the socio-economic system, not just the technology, when designing environmental policy."

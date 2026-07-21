@@ -1,0 +1,1 @@
+This is not JSON at all. It's just some text that the AI might return when it's confused or when the API returns an error message instead of the expected JSON format. The parser should handle this gracefully and return an error.

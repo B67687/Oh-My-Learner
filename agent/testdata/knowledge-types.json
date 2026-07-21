@@ -1,0 +1,20 @@
+[
+  {
+    "type": "standard",
+    "knowledge_type": "declarative",
+    "question": "What is a process control block?",
+    "answer": "A process control block (PCB) is a data structure in the OS kernel that stores all information about a process, including its state, program counter, registers, memory limits, and open file descriptors."
+  },
+  {
+    "type": "code-trace",
+    "knowledge_type": "procedural",
+    "question": "{{code}}\nint x = 10;\nint y = 20;\nswap(&x, &y);\nprintf(\"%d %d\", x, y);\n{{endcode}}\nWhat does this output if swap correctly exchanges values?",
+    "answer": "20 10. The swap function exchanges the values at the memory addresses of x and y."
+  },
+  {
+    "type": "standard",
+    "knowledge_type": "invalid-type",
+    "question": "What is a semaphore?",
+    "answer": "A semaphore is a synchronization primitive used to control access to shared resources."
+  }
+]

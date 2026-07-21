@@ -6,9 +6,11 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/B67687/Oh-My-Learner/core"
+	"github.com/spf13/cobra"
 )
+
+var statusCount bool
 
 var statusCmd = &cobra.Command{
 	Use:   "status",
@@ -27,6 +29,16 @@ Shows how many cards are due today and the total card count per subject.`,
 		dueCounts, err := store.SubjectDueCounts(now)
 		if err != nil {
 			return fmt.Errorf("failed to get subject due counts: %w", err)
+		}
+
+		// --count: print total due cards as a single integer (for shell hooks).
+		if statusCount {
+			totalDue := 0
+			for _, dc := range dueCounts {
+				totalDue += dc.DueCount
+			}
+			fmt.Println(totalDue)
+			return nil
 		}
 
 		if len(dueCounts) == 0 {
@@ -63,4 +75,9 @@ Shows how many cards are due today and the total card count per subject.`,
 
 		return w.Flush()
 	},
+}
+
+func init() {
+	statusCmd.Flags().BoolVarP(&statusCount, "count", "c", false,
+		"Print total due count only (for shell hooks)")
 }

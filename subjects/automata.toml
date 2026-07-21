@@ -1,0 +1,122 @@
+name = "Automata, Computability and Complexity"
+prerequisites = ["SC2001"]
+
+# ── Finite Automata ─────────────────────────────────────────────────────────
+# Declarative: definitions and properties of DFA, NFA, regular languages.
+
+[[templates]]
+id = "dfa-formal-definition"
+type = "standard"
+knowledge_type = "declarative"
+question = "What is the formal definition of a Deterministic Finite Automaton (DFA)?"
+answer = "A DFA is a 5-tuple (Q, Σ, δ, q₀, F) where:\n- Q is a finite set of states\n- Σ is a finite input alphabet\n- δ: Q × Σ → Q is the transition function (total function)\n- q₀ ∈ Q is the start state\n- F ⊆ Q is the set of accept states\n\nThe DFA is deterministic because δ is defined for every state-symbol pair and returns exactly one next state. The language L(M) is {w | δ*(q₀, w) ∈ F}, the set of all strings that lead from q₀ to some accept state."
+
+[[templates]]
+id = "nfa-to-dfa-subset-construction"
+type = "standard"
+knowledge_type = "declarative"
+question = "Describe the subset construction algorithm for converting an NFA to an equivalent DFA."
+answer = "Given NFA N = (Q, Σ, δ, q₀, F), construct DFA D = (P(Q), Σ, δ', q₀', F') where:\n- Each DFA state is a subset of Q (P(Q) is the power set of Q)\n- q₀' = E(q₀) — the ε-closure of q₀ (all states reachable via ε)\n- δ'(R, a) = ∪_{r∈R} E(δ(r, a)) for each R ⊆ Q\n- F' = {R ⊆ Q | R ∩ F ≠ ∅}\n\nThe DFA simulates all NFA paths in parallel. After reading a string, the DFA state is exactly the set of NFA states reachable on that string. Every NFA has an equivalent DFA, though the DFA may have up to 2^|Q| states (exponential in worst case)."
+
+[[templates]]
+id = "pumping-lemma-regular"
+type = "standard"
+knowledge_type = "declarative"
+question = "State the Pumping Lemma for regular languages. Use it to prove that L = {0ⁿ1ⁿ | n ≥ 0} is not regular."
+answer = "Pumping Lemma: If A is a regular language, there exists a pumping length p such that for every string s ∈ A with |s| ≥ p, s can be split into s = xyz satisfying:\n1. |y| ≥ 1 (the pumped part is non-empty)\n2. |xy| ≤ p (the loop occurs within the first p symbols)\n3. ∀i ≥ 0: xyⁱz ∈ A (the string can be pumped arbitrarily)\n\nProof L = {0ⁿ1ⁿ} is not regular:\nAssume L is regular. Let p be the pumping length. Choose s = 0ᵖ1ᵖ ∈ L. By condition 2, xy consists only of 0s. So y = 0^k for some k ≥ 1. Pump up: xy²z = 0^{p+k}1ᵖ has more 0s than 1s, so it is NOT in L. This contradicts condition 3. ∴ L is not regular."
+
+# ── Context-Free Grammars & Pushdown Automata ──────────────────────────────
+# Declarative: CFG and PDA formal definitions and properties.
+
+[[templates]]
+id = "cfg-formal-definition"
+type = "standard"
+knowledge_type = "declarative"
+question = "What is a Context-Free Grammar (CFG)? Give its formal definition and the definition of its generated language."
+answer = "A CFG is a 4-tuple (V, Σ, R, S) where:\n- V is a finite set of variables (non-terminals)\n- Σ is a finite set of terminals (disjoint from V)\n- R is a finite set of productions A → α where A ∈ V and α ∈ (V ∪ Σ)*\n- S ∈ V is the start variable\n\nDerivation: uAv ⇒ uαv (replace variable A with α per some rule). The language generated is L(G) = {w ∈ Σ* | S ⇒* w} — all terminal strings derivable from S in zero or more steps. CFGs generate exactly the context-free languages, which properly include the regular languages."
+
+[[templates]]
+id = "pda-formal-definition"
+type = "standard"
+knowledge_type = "declarative"
+question = "Define a Pushdown Automaton (PDA) formally. How does a PDA accept input?"
+answer = "A PDA is a 6-tuple (Q, Σ, Γ, δ, q₀, F) where:\n- Q is a finite set of states\n- Σ is a finite input alphabet\n- Γ is a finite stack alphabet\n- δ: Q × (Σ ∪ {ε}) × (Γ ∪ {ε}) → P(Q × Γ*) is the nondeterministic transition function\n- q₀ ∈ Q is the start state\n- F ⊆ Q is the set of accept states\n\nA transition δ(q, a, x) ∋ (r, y) means: in state q, reading input a (or ε for spontaneous), with x on top of stack (or ε for no check), replace x with y and go to state r. Acceptance is by final state: the PDA consumes all input and ends in a state in F. PDAs recognize exactly the context-free languages."
+
+[[templates]]
+id = "tm-formal-definition"
+type = "standard"
+knowledge_type = "declarative"
+question = "Give the formal definition of a Turing Machine (TM). What does the Church-Turing thesis claim?"
+answer = "A TM is a 7-tuple (Q, Σ, Γ, δ, q₀, q_accept, q_reject) where:\n- Q is a finite set of states\n- Σ is the input alphabet (blank symbol ␣ ∉ Σ)\n- Γ is the tape alphabet (Σ ∪ {␣} ⊆ Γ)\n- δ: Q × Γ → Q × Γ × {L, R} is the transition function\n- q₀ ∈ Q is the start state\n- q_accept ∈ Q is the accept state (halts immediately)\n- q_reject ∈ Q is the reject state (halts immediately, q_reject ≠ q_accept)\n\nThe TM can read and write the tape in both directions — unlimited random-access memory. The Church-Turing thesis states that any effectively computable function can be computed by some Turing machine, establishing TMs as the canonical model of computation."
+
+# ── Traced Constructions ────────────────────────────────────────────────────
+# Procedural: step-by-step execution of constructions, derivations, and simulators.
+
+[[templates]]
+id = "regular-expression-to-nfa"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Convert the regular expression (a|b)*abb into an NFA using Thompson's construction. Show the major steps."
+answer = "Thompson's construction works bottom-up:\n\nStep 1 — atom a: q₁─a→q₂ (accept)\nStep 2 — atom b: q₃─b→q₄\nStep 3 — union (a|b): q₀─ε→q₁─a→q₂─ε→q₅ and q₀─ε→q₃─b→q₄─ε→q₅ (q₀ start, q₅ accept)\nStep 4 — Kleene star (a|b)*: new start q₆, with q₆─ε→q₀ (enter loop), q₅─ε→q₀ (repeat), q₆─ε→q₅ (accept ε). Accept state: q₅.\nStep 5 — concatenate abb: q₅─ε→q₇─a→q₈─ε→q₉─b→q₁₀─ε→q₁₁─b→q₁₂ (final accept)\n\nResult: NFA with 13 states. The final accept q₁₂ is reached iff the input matches (a|b)*abb."
+
+[[templates]]
+id = "cfg-leftmost-derivation"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Consider the CFG:\n  S → aS | bT\n  T → cT | ε\n\nShow the leftmost derivation of the string 'aabcc' and describe the language."
+answer = "Leftmost derivation (the leftmost variable is replaced at each step):\n  S\n  ⇒ aS          (by S → aS)\n  ⇒ aaS        (by S → aS)\n  ⇒ aabT       (by S → bT)\n  ⇒ aabcT      (by T → cT)\n  ⇒ aabccT     (by T → cT)\n  ⇒ aabcc      (by T → ε)\n\nParse tree:\n      S\n     /|\\\n    a S\n     /|\\\n    a S\n     /|\\\n    b T\n     /|\\\n    c T\n     /|\\\n    c ε\n\nThe language is a*bc* — one or more a's, then exactly one b, then zero or more c's."
+
+[[templates]]
+id = "pda-execution-trace"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Trace a PDA for balanced parentheses L = {w ∈ {(,)}* | w is balanced} on input '(()())'. The PDA: δ(q, (, ε) = {(q, (}) and δ(q, ), () = {(q, ε)}. Accept by empty stack."
+answer = "Execution on '(()())':\n\nStart: state = q, stack = ε\nRead '(' ⇒ push (.  Stack: (   Remaining: ()())\nRead '(' ⇒ push (.  Stack: ((  Remaining: )())\nRead ')' ⇒ pop (.   Stack: (   Remaining: ())\nRead '(' ⇒ push (.  Stack: ((  Remaining: ))\nRead ')' ⇒ pop (.   Stack: (   Remaining: )\nRead ')' ⇒ pop (.   Stack: ε   Remaining: ε\n\nInput consumed, stack empty → accept ✓\n\nInvariant: the stack depth equals the number of unmatched open parentheses. A string is balanced iff (1) the stack is never empty on a ')' pop, and (2) the stack is empty at end. This PDA enforces both naturally: δ prevents popping from an empty stack, and acceptance by empty stack requires condition 2."
+
+[[templates]]
+id = "tm-execution-trace"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Trace a Turing machine for L = {0ⁿ1ⁿ | n ≥ 0} on input '0011'. The TM repeatedly crosses off one 0 (replace with X) and one 1 (replace with Y), then scans left to restart."
+answer = "Initial tape: ␣0011␣, head at first 0.\n\nIteration 1:\n  Read 0 → write X, move R.  Tape: ␣X011␣\n  Skip 0 (0→0,R), head at first 1.\n  Read 1 → write Y, move L.  Tape: ␣X0Y1␣\n  Move L past 0, head at X. Move R.\n\nIteration 2:\n  Head at 0 → write X, move R.  Tape: ␣XXY1␣\n  Skip Y (Y→Y,R), head at 1.\n  Read 1 → write Y, move L.  Tape: ␣XXYY␣\n  Move L past Y, head at X. Move R.\n  Skip X (X→X,R), skip Y, skip Y... head at blank ␣.\n\nScan left: all tape symbols are X or Y, no 0 or 1 remains → accept ✓\n\nIf input were '001' (unbalanced), after crossing off one pair, one 0 remains but no 1 remains for the second pair → reject."
+
+# ── Computability & Complexity ──────────────────────────────────────────────
+# Explain-why: reasoning about undecidability, P vs NP, reductions.
+
+[[templates]]
+id = "halting-problem-undecidable"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "Why is the Halting Problem undecidable? Outline the diagonalization proof."
+answer = "The Halting Problem (HALT): given TM M and input w, does M halt on w? It is undecidable — no TM can decide it.\n\nProof by contradiction: suppose HALT is decidable by TM H. Then H(⟨M⟩, w) accepts if M halts on w, rejects otherwise.\n\nConstruct TM D: on input ⟨M⟩, run H(⟨M⟩, ⟨M⟩). If H accepts (M halts on its own description), D loops forever. If H rejects (M loops on ⟨M⟩), D halts.\n\nNow run D on ⟨D⟩:\n- If D halts ⇒ H(⟨D⟩, ⟨D⟩) accepts ⇒ D was supposed to loop. Contradiction.\n- If D loops ⇒ H(⟨D⟩, ⟨D⟩) rejects ⇒ D was supposed to halt. Contradiction.\n\nThus H cannot exist. This diagonalization parallels Cantor's proof that |ℝ| > |ℕ|: H defines a table of (M, w) halts/loops entries, and D flips the diagonal entries, producing a row not in the table."
+
+[[templates]]
+id = "p-vs-np-significance"
+type = "explain-why"
+knowledge_type = "procedural"
+question = "Explain the difference between P and NP. Why does the P vs NP question matter?"
+answer = "P = {decision problems solvable in polynomial time by a deterministic TM} — 'efficiently solvable.'\nNP = {problems solvable in polynomial time by a nondeterministic TM} — equivalently, problems whose solutions can be verified in polynomial time. Every problem in P is also in NP, but P = NP is unknown.\n\nWhy it matters:\n1. Cryptography: RSA, ECC, and most public-key systems rely on factoring (in NP, not known to be in P). P = NP would break virtually all modern cryptography.\n2. Optimization: thousands of NP-complete problems (TSP, scheduling, SAT) would become tractable — transforming logistics, drug design, and AI.\n3. Philosophical: P vs NP asks whether finding a proof is fundamentally harder than verifying one.\n4. Millennium Problem: one of seven Clay Institute problems (US$1M prize). 50+ years of research strongly suggests P ≠ NP, but no proof exists."
+
+[[templates]]
+id = "polynomial-reduction-3sat-clique"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "What is a polynomial-time reduction? Explain how to reduce 3SAT to CLIQUE, proving CLIQUE is NP-Complete."
+answer = "A polynomial-time reduction from A to B is a function f computable in polynomial time such that x ∈ A ⟺ f(x) ∈ B. If such f exists, B is at least as hard as A.\n\nReduction from 3SAT to CLIQUE: Given 3CNF formula φ with k clauses, construct graph G:\n- For each clause Cᵢ = (ℓ₁ ∨ ℓ₂ ∨ ℓ₃), create 3 vertices labeled by their literals.\n- Add edges between all vertex pairs EXCEPT: (a) vertices in the same clause; (b) contradictory literals (x and ¬x).\n- Set clique target size = k.\n\nCorrectness:\n(⇒) If φ is satisfiable, each clause has at least one true literal. Pick one per clause → k vertices. No two are in the same clause, and none are contradictory (a variable and its negation can't both be true) → they form a k-clique.\n(⇐) If G has a k-clique, it picks exactly one vertex from each clause. Assign each vertex's literal true → all k clauses satisfied → φ is satisfiable.\n\nSince 3SAT is NP-Complete and reduces to CLIQUE in polynomial time, CLIQUE is NP-Complete."
+
+# ── Debug & Find Errors ─────────────────────────────────────────────────────
+# Procedural: identify and fix common mistakes in automata reasoning.
+
+[[templates]]
+id = "cfg-ambiguity-find"
+type = "debug-find"
+knowledge_type = "procedural"
+question = "A student writes this CFG for arithmetic expressions:\n  E → E + E | E × E | (E) | id\n\nThey claim it correctly captures all arithmetic expressions. Is there a problem? If so, fix it."
+answer = "Yes — the grammar is AMBIGUOUS. The string 'id + id × id' has two distinct leftmost derivations:\n\nTree 1 (addition outer): E → E+E → id+E → id+E×E → id+id×E → id+id×id\nMeaning: id + (id × id) — intended precedence\n\nTree 2 (multiplication outer): E → E×E → E+E×E → id+E×E → id+id×E → id+id×id\nMeaning: (id + id) × id — WRONG! Multiplication should bind tighter.\n\nFix by introducing precedence levels:\n  E  → E + T | T        (addition, lowest precedence)\n  T  → T × F | F        (multiplication, higher)\n  F  → (E) | id         (atoms, highest)\n\nNow + and × are left-associative, × binds tighter than +, and 'id+id×id' can ONLY parse as id + (id × id). There is exactly one parse tree for every string."
+
+[[templates]]
+id = "dfa-minimization-error"
+type = "debug-find"
+knowledge_type = "procedural"
+question = "Consider this DFA:\n  States: {q₀, q₁, q₂, q₃}\n  Alphabet: {0,1}\n  Start: q₀\n  Accept: {q₀, q₃}\n  δ(q₀,0)=q₁, δ(q₀,1)=q₂\n  δ(q₁,0)=q₃, δ(q₁,1)=q₁\n  δ(q₂,0)=q₂, δ(q₂,1)=q₃\n  δ(q₃,0)=q₃, δ(q₃,1)=q₃\n\nA student says: 'q₁ and q₂ have the same pattern — one transition to q₃ and one looping back — so they can be merged.' Is this correct?"
+answer = "No. The student's pattern heuristic is wrong. q₁ and q₂ are distinguishable by the Myhill-Nerode table-filling algorithm:\n\n1. Mark all (accept, reject) pairs: (q₀,q₁), (q₀,q₂) are marked. (q₃,q₁), (q₃,q₂) are also marked because q₃ ∈ F and q₁, q₂ ∉ F.\n\n2. Check (q₁, q₂):\n   δ(q₁, 0) = q₃ (accept) and δ(q₂, 0) = q₂ (reject)\n   Since (q₃, q₂) is already marked as distinguishable, (q₁, q₂) is also distinguishable.\n\nString '0' distinguishes them: δ*(q₁, 0) = q₃ ∈ F (accepts), but δ*(q₂, 0) = q₂ ∉ F (rejects). They CANNOT be merged. The student's mistake: they looked at transition SHAPES rather than checking whether ANY input string leads one state to accept and the other to reject."

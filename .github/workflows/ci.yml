@@ -1,5 +1,5 @@
-# ci.yml — Go build + test + vet on push and PR.
-# Matches SPECIFICATION.md quality gates.
+# ci.yml — Go build + test + vet across the latest two stable Go versions.
+# Triggered on push/PR to main.
 
 name: ci
 
@@ -14,22 +14,27 @@ permissions:
 
 jobs:
   build:
+    strategy:
+      matrix:
+        go: ["1.22.x", "1.23.x"]
+      fail-fast: false
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          go-version: ${{ matrix.go }}
           cache: true
 
       - name: go build
         run: go build ./...
 
+      - name: go test
+        run: go test ./... -count=1 -timeout=60s
+
       - name: go vet
         run: go vet ./...
-
-      - name: go test
-        run: go test ./... -count=1

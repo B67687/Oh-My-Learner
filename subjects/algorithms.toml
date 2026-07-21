@@ -1,184 +1,93 @@
-name = "Algorithms"
-
-# ── Time Complexity ──────────────────────────────────────────────────────
-
-[[templates]]
-id = "complexity-sorting"
-question = "What is the worst-case time complexity of {{ algorithm }}?"
-answer = "{{ algorithm }} has a worst-case complexity of {{ complexity }}. {{ explanation }}"
-
-[templates.variables]
-algorithm = ["Bubble Sort", "Selection Sort", "Insertion Sort", "Merge Sort", "Quick Sort", "Heap Sort"]
-complexity = ["O(n²)", "O(n²)", "O(n²)", "O(n log n)", "O(n²)", "O(n log n)"]
-explanation = [
-    "It compares adjacent elements repeatedly.",
-    "It scans for the minimum element in each pass.",
-    "It shifts elements to insert each item in its correct position.",
-    "It divides the array in half recursively and merges sorted halves.",
-    "Poor pivot choices cause O(n²); average case is O(n log n).",
-    "It builds a heap and repeatedly extracts the maximum element."
-]
+name = "Algorithm Design & Analysis"
+prerequisites = ["SC1007", "MH1812"]
 
 [[templates]]
-id = "complexity-bst"
-question = "What is the worst-case time complexity of a {{ operation }} in a {{ type }} BST?"
-answer = "The worst-case complexity is {{ complexity }}. In a {{ type }} BST, {{ explanation }}"
-
-[templates.variables]
-operation = ["search", "insertion", "deletion"]
-type = ["balanced", "unbalanced"]
-complexity = ["O(log n)", "O(n)"]
-explanation = [
-    "the height is kept to O(log n) via rotations or balancing rules.",
-    "the tree can degenerate into a linked list, making operations O(n)."
-]
+id = "big-o-definition"
+type = "standard"
+knowledge_type = "declarative"
+question = "What does Big-O notation describe?"
+answer = "Big-O notation describes the asymptotic upper bound of a function's growth rate. It represents the worst-case time or space complexity of an algorithm in terms of input size n, ignoring constant factors and lower-order terms."
 
 [[templates]]
-id = "complexity-graph"
-question = "What is the time complexity of {{ algorithm }} on a graph with V vertices and E edges?"
-answer = "{{ algorithm }} runs in O({{ complexity }}). {{ explanation }}"
-
-[templates.variables]
-algorithm = ["Breadth-First Search (BFS)", "Depth-First Search (DFS)", "Dijkstra's algorithm", "Bellman-Ford algorithm", "Kruskal's algorithm", "Prim's algorithm"]
-complexity = ["V + E", "V + E", "(V + E) log V", "V·E", "E log V", "(V + E) log V"]
-explanation = [
-    "Each vertex is visited once and each edge is traversed once.",
-    "Each vertex is visited once and each edge is traversed once (using an adjacency list).",
-    "Using a binary heap, each vertex is extracted once and each edge may relax the distance.",
-    "It relaxes all edges V-1 times to detect negative cycles.",
-    "Sorting edges takes E log E ≈ E log V, and union-find operations are nearly constant.",
-    "Using a binary heap, each vertex is extracted once and each edge is considered."
-]
-
-# ── Divide and Conquer ───────────────────────────────────────────────────
+id = "master-theorem"
+type = "standard"
+knowledge_type = "declarative"
+question = "What is the Master Theorem and what does it solve?"
+answer = "The Master Theorem solves recurrences of the form T(n) = aT(n/b) + f(n) where a >= 1, b > 1. Compare f(n) with n^(log_b a):\n- If f(n) = O(n^(log_b a - e)), case 1: T(n) = Theta(n^(log_b a))\n- If f(n) = Theta(n^(log_b a)), case 2: T(n) = Theta(n^(log_b a) log n)\n- If f(n) = Omega(n^(log_b a + e)), case 3: T(n) = Theta(f(n))"
 
 [[templates]]
-id = "d-and-c"
-question = "Which of the following algorithms uses the divide-and-conquer paradigm?"
-answer = "{{ algorithm }} uses divide-and-conquer. {{ explanation }}"
-
-[templates.variables]
-algorithm = ["Merge Sort", "Quick Sort", "Binary Search", "Strassen's matrix multiplication"]
-explanation = [
-    "It recursively divides the array in half, sorts each half, and merges them.",
-    "It partitions the array around a pivot and recursively sorts each partition.",
-    "It repeatedly divides the search interval in half.",
-    "It recursively divides matrices into smaller submatrices."
-]
-
-[[templates]]
-id = "d-and-c-not"
-question = "Does {{ algorithm }} use divide-and-conquer?"
-answer = "{{ yesno }}. {{ explanation }}"
-
-[templates.variables]
-algorithm = ["Dijkstra's algorithm", "Bellman-Ford", "Insertion Sort", "Selection Sort", "Breadth-First Search"]
-yesno = ["No", "No", "No", "No", "No"]
-explanation = [
-    "It is a greedy algorithm, not divide-and-conquer.",
-    "It uses dynamic programming (iterative relaxation).",
-    "It is an incremental algorithm — it inserts elements one by one.",
-    "It scans for the minimum repeatedly — no division step.",
-    "It uses a queue for level-order traversal, not divide-and-conquer."
-]
-
-# ── Sorting Properties ───────────────────────────────────────────────────
-
-[[templates]]
-id = "sorting-property"
-question = "Is {{ algorithm }} a stable sort?"
-answer = "{{ yesno }}. {{ explanation }}"
-
-[templates.variables]
-algorithm = ["Bubble Sort", "Selection Sort", "Insertion Sort", "Merge Sort", "Quick Sort", "Heap Sort"]
-yesno = ["Yes", "No", "Yes", "Yes", "No (typically)", "No"]
-explanation = [
-    "Equal elements are never swapped past each other.",
-    "It selects the minimum and swaps it forward, potentially breaking stability.",
-    "It inserts elements without reordering equal ones.",
-    "When merging, equal elements from the left half come first.",
-    "The partitioning step may reorder equal elements depending on the pivot strategy.",
-    "It rearranges the array into a heap, which does not preserve relative order."
-]
-
-[[templates]]
-id = "sorting-best-case"
-question = "What is the best-case time complexity of {{ algorithm }}?"
-answer = "{{ algorithm }} achieves O({{ complexity }}) in the best case. {{ explanation }}"
-
-[templates.variables]
-algorithm = ["Bubble Sort", "Insertion Sort", "Merge Sort", "Quick Sort", "Heap Sort"]
-complexity = ["n", "n", "n log n", "n log n", "n log n"]
-explanation = [
-    "With an optimized version that stops early when no swaps occur.",
-    "When the input is already sorted, it just compares each element once.",
-    "Even in the best case, it must divide and merge recursively.",
-    "With a good pivot strategy, it still requires O(n log n) comparisons.",
-    "Building the heap takes O(n) and extracting all elements takes O(n log n)."
-]
-
-# ── Data Structures ──────────────────────────────────────────────────────
-
-[[templates]]
-id = "heap-property"
-question = "In a {{ type }} heap, what property must every node satisfy?"
-answer = "{{ explanation }}"
-
-[templates.variables]
-type = ["min-heap", "max-heap"]
-explanation = [
-    "Every parent node must have a value less than or equal to its children. The minimum element is at the root.",
-    "Every parent node must have a value greater than or equal to its children. The maximum element is at the root."
-]
-
-[[templates]]
-id = "hash-table"
-question = "How does {{ method }} resolve collisions in a hash table?"
-answer = "{{ explanation }}"
-
-[templates.variables]
-method = ["separate chaining", "linear probing", "quadratic probing", "double hashing"]
-explanation = [
-    "Each bucket stores a linked list (or another structure) of all keys that hash to that index.",
-    "When a collision occurs, it checks the next available slot sequentially until an empty slot is found.",
-    "When a collision occurs at index i, it checks i + 1², i + 2², i + 3², ... until an empty slot is found.",
-    "When a collision occurs, a second hash function determines the step size for probing."
-
-]
-
-# ── Algorithm Design ─────────────────────────────────────────────────────
+id = "merge-sort-analysis"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Trace through merge sort on the array [38, 27, 43, 3, 9, 82, 10]. Show the divide and conquer steps, then state its time complexity."
+answer = "Divide: [38,27,43,3,9,82,10] → [38,27,43,3] [9,82,10] → [38,27] [43,3] [9,82] [10] → [38] [27] [43] [3] [9] [82] [10]\nConquer (merge): [27,38] [3,43] [9,82] [10] → [3,27,38,43] [9,10,82] → [3,9,10,27,38,43,82]\nTime complexity: O(n log n) for all cases."
 
 [[templates]]
 id = "greedy-vs-dp"
-question = "Is {{ algorithm }} greedy or dynamic programming?"
-answer = "{{ paradigm }}. {{ explanation }}"
-
-[templates.variables]
-algorithm = ["Dijkstra's algorithm", "Bellman-Ford", "Huffman coding", "Knapsack (fractional)", "Knapsack (0/1)", "Floyd-Warshall"]
-paradigm = ["Greedy", "Dynamic Programming", "Greedy", "Greedy", "Dynamic Programming", "Dynamic Programming"]
-explanation = [
-    "It always selects the unvisited vertex with the smallest distance — optimal substructure with a local choice.",
-    "It relaxes all edges iteratively, building up optimal solutions to subproblems.",
-    "It repeatedly combines the two lowest-frequency symbols — a locally optimal choice.",
-    "It takes the item with the best value-to-weight ratio first.",
-    "It considers whether to include or exclude each item, building a table of subproblem solutions.",
-    "It considers each vertex as an intermediate node, updating shortest paths."
-]
-
-# ── Graph Properties ─────────────────────────────────────────────────────
+type = "explain-why"
+knowledge_type = "declarative"
+question = "Why does the 0/1 Knapsack problem require dynamic programming instead of a greedy approach?"
+answer = "Greedy fails because the 0/1 Knapsack has overlapping subproblems and optimal substructure but a greedy choice (taking items by value/weight ratio) does NOT guarantee optimality—the indivisible nature means taking a high-ratio item might block a combination of smaller items with total higher value. DP is required because we need to explore the decision tree of including/excluding each item, and DP memoizes overlapping subproblems to avoid exponential recomputation."
 
 [[templates]]
-id = "graph-type"
-question = "What is the main characteristic of a {{ type }} graph?"
-answer = "{{ explanation }}"
+id = "dijkstra-limitation"
+type = "debug-find"
+knowledge_type = "procedural"
+question = "What's the bug in this claim: 'Dijkstra's algorithm always finds the shortest path in any weighted graph.'"
+answer = "The claim is wrong for graphs with negative edge weights. Dijkstra's algorithm assumes that once a vertex is visited (distance finalized), no shorter path exists. With negative edges, a later edge might reduce the distance to an already-visited vertex. For negative weights, use Bellman-Ford instead (O(VE) vs O((V+E)log V))."
 
-[templates.variables]
-type = ["directed", "undirected", "weighted", "acyclic", "complete", "bipartite"]
-explanation = [
-    "Edges have a direction — moving from vertex A to B does not imply a path from B to A.",
-    "Edges have no direction — the relationship is symmetric.",
-    "Each edge has a numerical value (weight) associated with it.",
-    "The graph contains no cycles. A directed acyclic graph is called a DAG.",
-    "Every pair of distinct vertices is connected by a unique edge.",
-    "Vertices can be partitioned into two sets such that all edges go between the sets (no edges within a set)."
-]
+[[templates]]
+id = "hash-table-collision"
+type = "standard"
+knowledge_type = "declarative"
+question = "What are the two main strategies for handling hash table collisions, and what are their trade-offs?"
+answer = "1. Chaining (separate chaining) — each bucket is a linked list. Insert O(1), worst-case search O(n). Simple to implement.\n2. Open addressing (probing) — find next empty slot. Linear probing: O(1) average but clustering. Double hashing: reduces clustering but more complex.\nChaining is better for high load factors; open addressing is more cache-friendly."
+
+[[templates]]
+id = "quickselect-trace"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Trace quickselect on the array [7, 10, 4, 3, 20, 15] to find the 3rd smallest element (k=3). Use Lomuto partition with last element as pivot."
+answer = "Array: [7,10,4,3,20,15], pivot=15\nPartition: [7,10,4,3] 15 [20] → pivot index=4, k=3 < 4 → recurse left\nLeft: [7,10,4,3], pivot=3\nPartition: [3] [7,10,4] → pivot index=0, k=3 > 0+1 → recurse right\nRight: [7,10,4], pivot=4\nPartition: [4] [7,10] → pivot index=1, k=3 > 1+1+1 → recurse right\nRight: [7,10], pivot=10\nPartition: [7] 10 → pivot index=1, k=3 > idx+1+1 → recurse right\nFound: 10\nTime: O(n) average, O(n^2) worst."
+
+[[templates]]
+id = "amortized-dynamic-array"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "Why is appending to a dynamic array amortized O(1) even though doubling the array costs O(n)?"
+answer = "Appending to a dynamic array has amortized O(1) because the rare costly doubles are offset by the many cheap appends. Each append does O(1) work normally; when the array doubles (costing k for size k), that cost is spread over the k elements that can now be added before the next double. The accounting method: each append 'pays' 3 units—1 for its own insert, 2 saved for future doubling. This ensures the total cost of n appends is O(3n) = O(n), so each is O(1) amortized."
+
+[[templates]]
+id = "dfs-vs-bfs-maze"
+type = "standard"
+knowledge_type = "declarative"
+question = "When would you choose BFS over DFS for pathfinding in an unweighted graph?"
+answer = "Choose BFS when you need the SHORTEST path (in terms of number of edges). BFS explores level by level, so the first time you reach the target, it's via the shortest path. DFS finds A path, not necessarily the shortest. Choose DFS when memory is limited (DFS uses O(h) stack space where h is graph height; BFS uses O(w) queue space where w can be exponentially larger)."
+
+[[templates]]
+id = "divide-and-conquer-recurrence"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Solve this recurrence using the Master Theorem: T(n) = 4T(n/2) + n^2"
+answer = "a = 4, b = 2, f(n) = n^2\nn^(log_b a) = n^(log_2 4) = n^2\nf(n) = Theta(n^2) = Theta(n^(log_b a))\nCase 2 applies: T(n) = Theta(n^(log_b a) log n) = Theta(n^2 log n)"
+
+[[templates]]
+id = "np-complete-intuition"
+type = "explain-why"
+knowledge_type = "declarative"
+question = "Why is the SAT problem considered the 'first' NP-Complete problem, and what does the Cook-Levin theorem prove?"
+answer = "The Cook-Levin theorem (1971) proves that SAT (Boolean Satisfiability) is NP-Complete: (1) SAT is in NP—a satisfying assignment can be verified in polynomial time; (2) every problem in NP can be reduced to SAT in polynomial time. Cook proved this by showing that any nondeterministic Turing machine computation can be encoded as a SAT instance. This made SAT the FIRST problem proven NP-Complete, providing the foundation for proving other problems NP-Complete via polynomial reduction from SAT."
+
+[[templates]]
+id = "red-black-tree-property"
+type = "debug-find"
+knowledge_type = "declarative"
+question = "Find the error: 'A valid red-black tree can have two consecutive red nodes on a path from root to leaf.'"
+answer = "FALSE. Red-black tree property 4 states: 'If a node is red, both its children are black' — equivalent to 'no two consecutive reds on any root-to-leaf path.' If a red node has a red child, this violates the property and requires recoloring or rotation to fix. However, two consecutive reds DURING insertion BEFORE rebalancing is normal—the fix propagates them up."
+
+[[templates]]
+id = "kadane-algorithm"
+type = "code-trace"
+knowledge_type = "procedural"
+question = "Trace Kadane's algorithm on [-2, 1, -3, 4, -1, 2, 1, -5, 4] to find the maximum subarray sum."
+answer = "Initialize: max_current = max_global = -2\n1: max_current = max(1, -2+1=1) = 1, max_global = max(-2,1) = 1\n-3: max_current = max(-3, 1-3=-2) = -2, max_global = max(1,-2) = 1\n4: max_current = max(4, -2+4=2) = 4, max_global = max(1,4) = 4\n-1: max_current = max(-1, 4-1=3) = 3, max_global = max(4,3) = 4\n2: max_current = max(2, 3+2=5) = 5, max_global = max(4,5) = 5\n1: max_current = max(1, 5+1=6) = 6, max_global = max(5,6) = 6\n-5: max_current = max(-5, 6-5=1) = 1, max_global = max(6,1) = 6\n4: max_current = max(4, 1+4=5) = 5, max_global = max(6,5) = 6\nResult: max subarray sum = 6 (subarray [4, -1, 2, 1])"
